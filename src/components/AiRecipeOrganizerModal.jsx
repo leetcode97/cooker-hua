@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Wand2, Upload, FileText, CheckCircle2, Zap, Settings, Camera, Image } from 'lucide-react';
 
-const API_BASE = window.location.port === '5173' ? 'http://localhost:3001/api' : '/api';
+import { parseRecipeWithAi } from '../services/aiService';
 
 export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onOpenAiConfig }) {
   const [inputText, setInputText] = useState('');
@@ -48,59 +48,50 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
     }
   };
 
-  const handleAiParse = () => {
+  const handleAiParse = async () => {
     if (!inputText.trim()) return;
     setIsParsing(true);
 
-    fetch(`${API_BASE}/ai/parse-recipe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: inputText,
-        targetMealType: selectedMealTypes[0] || 'lunch'
-      })
-    })
-      .then(res => res.json())
-      .then(res => {
-        setIsParsing(false);
-        if (res.success && res.recipe) {
-          const parsed = res.recipe;
-          setAiSource(res.source === 'ai_live' ? '🔥 实时大模型解析' : '🧠 智能菜谱结构化引擎');
-          setPreviewRecipe({
-            id: Date.now().toString(),
-            title: parsed.title || '整理私房菜',
-            subtitle: parsed.subtitle || '根据您的记录提炼的标准菜谱。',
-            coverImage: coverImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
-            cookTime: parsed.cookTime || '12 分钟',
-            minutes: parsed.minutes || 12,
-            calories: parsed.calories || '320 kcal',
-            caloriesValue: parsed.caloriesValue || 320,
-            difficulty: parsed.difficulty || '简单',
-            mealTypes: selectedMealTypes,
-            inductionFriendly,
-            riceCookerFriendly,
-            tags: ['AI整理', '家常菜', '电磁炉友好'],
-            likes: 1,
-            isLiked: false,
-            isFavorite: true,
-            author: '我的私房整理',
-            publishDate: new Date().toISOString().split('T')[0],
-            ingredients: parsed.ingredients || [
-              { name: '主料', amount: '适量', icon: '🥩' },
-              { name: '生抽', amount: '15ml', icon: '🍾' }
-            ],
-            steps: parsed.steps || [
-              { stepNumber: 1, title: '准备工作', description: '食材切好备用。', duration: 2 },
-              { stepNumber: 2, title: '下锅烹饪', description: '下锅大火翻炒断生。', duration: 4 },
-              { stepNumber: 3, title: '调味出锅', description: '调味翻匀出锅享用。', duration: 2 }
-            ]
-          });
-        }
-      })
-      .catch(err => {
-        setIsParsing(false);
-        console.error('AI Parse failed:', err);
-      });
+    try {
+      const res = await parseRecipeWithAi(inputText, selectedMealTypes[0] || 'lunch');
+      setIsParsing(false);
+      if (res.success && res.recipe) {
+        const parsed = res.recipe;
+        setAiSource(res.source === 'ai_live' ? '🔥 实时大模型解析' : '🧠 智能菜谱结构化引擎');
+        setPreviewRecipe({
+          id: Date.now().toString(),
+          title: parsed.title || '整理私房菜',
+          subtitle: parsed.subtitle || '根据您的记录提炼的标准菜谱。',
+          coverImage: coverImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+          cookTime: parsed.cookTime || '12 分钟',
+          minutes: parsed.minutes || 12,
+          calories: parsed.calories || '320 kcal',
+          caloriesValue: parsed.caloriesValue || 320,
+          difficulty: parsed.difficulty || '简单',
+          mealTypes: selectedMealTypes,
+          inductionFriendly,
+          riceCookerFriendly,
+          tags: ['AI整理', '家常菜', '电磁炉友好'],
+          likes: 1,
+          isLiked: false,
+          isFavorite: true,
+          author: '我的私房整理',
+          publishDate: new Date().toISOString().split('T')[0],
+          ingredients: parsed.ingredients || [
+            { name: '主料', amount: '适量', icon: '🥩' },
+            { name: '生抽', amount: '15ml', icon: '🍾' }
+          ],
+          steps: parsed.steps || [
+            { stepNumber: 1, title: '准备工作', description: '食材切好备用。', duration: 2 },
+            { stepNumber: 2, title: '下锅烹饪', description: '下锅大火翻炒断生。', duration: 4 },
+            { stepNumber: 3, title: '调味出锅', description: '调味翻匀出锅享用。', duration: 2 }
+          ]
+        });
+      }
+    } catch (err) {
+      setIsParsing(false);
+      console.error('AI Parse failed:', err);
+    }
   };
 
   const handleSave = () => {

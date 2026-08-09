@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { X, Refrigerator, Check, ArrowRight, Sparkles, Globe, ChefHat, Plus, Settings, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Refrigerator, Check, ArrowRight, Sparkles, Globe, ChefHat, Plus, Settings, RefreshCw, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
-
-const API_BASE = window.location.port === '5173' ? 'http://localhost:3001/api' : '/api';
+import { generateRecipesWithAi, getAiConfig } from '../services/aiService';
 
 const FRIDGE_PRESETS = [
   {
@@ -30,7 +29,7 @@ export default function FridgeHeroModal({
     '鸡蛋', '番茄', '生抽', '小葱'
   ]);
   const [customIngInput, setCustomIngInput] = useState('');
-  const [activeSourceTab, setActiveSourceTab] = useState('menu'); // 'menu' (本地匹配) or 'online' (AI 实时搜索)
+  const [activeSourceTab, setActiveSourceTab] = useState('menu'); // 'menu' (本地菜单匹配) or 'online' (AI 实时搜索)
   
   // AI Real-time Generation State
   const [aiRecipes, setAiRecipes] = useState([]);
@@ -39,11 +38,13 @@ export default function FridgeHeroModal({
   const [savedSuccessMap, setSavedSuccessMap] = useState({});
 
   const toggleIngredient = (name) => {
+    let next;
     if (selectedIngredients.includes(name)) {
-      setSelectedIngredients(selectedIngredients.filter(i => i !== name));
+      next = selectedIngredients.filter(i => i !== name);
     } else {
-      setSelectedIngredients([...selectedIngredients, name]);
+      next = [...selectedIngredients, name];
     }
+    setSelectedIngredients(next);
   };
 
   const handleAddCustomIngredient = (e) => {
@@ -54,7 +55,7 @@ export default function FridgeHeroModal({
     }
   };
 
-  // 1. Match against current curated recipe database
+  // 1. Match against current curated recipe database (本地 25 道菜兜底与精确匹配)
   const matchedRecipes = recipes.map(recipe => {
     const totalCount = recipe.ingredients ? recipe.ingredients.length : 1;
     const matchCount = recipe.ingredients ? recipe.ingredients.filter(ing => 
@@ -75,31 +76,32 @@ export default function FridgeHeroModal({
   }).filter(r => r.matchCount > 0).sort((a, b) => b.matchPercent - a.matchPercent);
 
   // 2. Call Real-time AI Generation
-  const handleTriggerAiSearch = () => {
-    if (selectedIngredients.length === 0) {
-      alert('请至少勾选或输入 1 样冰箱食材！');
+  const handleTriggerAiSearch = async (ings = selectedIngredients) => {
+    if (!ings || ings.length === 0) {
+      setAiRecipes([]);
       return;
     }
 
     setIsAiGenerating(true);
-    fetch(`${API_BASE}/ai/generate-recipes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ingredients: selectedIngredients })
-    })
-      .then(res => res.json())
-      .then(res => {
-        setIsAiGenerating(false);
-        if (res.success && Array.isArray(res.recipes)) {
-          setAiRecipes(res.recipes);
-          setAiSource(res.source === 'ai_live' ? '🔥 实时大模型联网思考' : '🧠 智能电磁炉算法烹饪引擎');
-        }
-      })
-      .catch(err => {
-        setIsAiGenerating(false);
-        console.error('AI generate error:', err);
-      });
+    try {
+      const res = await generateRecipesWithAi(ings);
+      setIsAiGenerating(false);
+      if (res.success && Array.isArray(res.recipes)) {
+        setAiRecipes(res.recipes);
+        setAiSource(res.source === 'ai_live' ? '🔥 已调用云端 DeepSeek 大模型实时思考' : '🧠 智能算法烹饪引擎（未配 Key 自动兜底）');
+      }
+    } catch (err) {
+      setIsAiGenerating(false);
+      console.error('AI generate error:', err);
+    }
   };
+
+  // Auto trigger AI generation on mount or tab switch
+  useEffect(() => {
+    if (activeSourceTab === 'online') {
+      handleTriggerAiSearch(selectedIngredients);
+    }
+  }, [activeSourceTab, selectedIngredients.join(',')]);
 
   const handleSaveAiRecipeToMenu = (recipe, idx) => {
     const fullRecipe = {
@@ -134,6 +136,8 @@ export default function FridgeHeroModal({
     confetti({ particleCount: 70, spread: 60 });
     setSavedSuccessMap(prev => ({ ...prev, [idx]: true }));
   };
+
+  const hasConfiguredKey = Boolean(getAiConfig().apiKey);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -219,9 +223,10 @@ export default function FridgeHeroModal({
                   color: activeSourceTab === 'menu' ? '#FF7417' : '#7A6A5D',
                   fontWeight: activeSourceTab === 'menu' ? 800 : 600,
                   fontSize: 13,
-                  padding: '8px 0',
+                  padding: '9px 0',
                   borderRadius: 10,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  boxShadow: activeSourceTab === 'menu' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
                 }}
               >
                 📖 本地菜单匹配 ({matchedRecipes.length} 道)
@@ -229,12 +234,7 @@ export default function FridgeHeroModal({
 
               <button
                 type="button"
-                onClick={() => {
-                  setActiveSourceTab('online');
-                  if (aiRecipes.length === 0) {
-                    handleTriggerAiSearch();
-                  }
-                }}
+                onClick={() => setActiveSourceTab('online')}
                 style={{
                   flex: 1,
                   border: 'none',
@@ -242,13 +242,14 @@ export default function FridgeHeroModal({
                   color: activeSourceTab === 'online' ? '#E65100' : '#7A6A5D',
                   fontWeight: activeSourceTab === 'online' ? 800 : 600,
                   fontSize: 13,
-                  padding: '8px 0',
+                  padding: '9px 0',
                   borderRadius: 10,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 4
+                  gap: 4,
+                  boxShadow: activeSourceTab === 'online' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
                 }}
               >
                 <Sparkles size={14} color="#FF7417" />
@@ -257,7 +258,7 @@ export default function FridgeHeroModal({
             </div>
           </div>
 
-          {/* 1. Tab 1: Local Menu Matching */}
+          {/* 1. Tab 1: Local Menu Matching (本地 25 道菜库兜底与精准匹配) */}
           {activeSourceTab === 'menu' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {matchedRecipes.length > 0 ? (
@@ -327,22 +328,22 @@ export default function FridgeHeroModal({
             </div>
           )}
 
-          {/* 2. Tab 2: Real-time AI Generation */}
+          {/* 2. Tab 2: Real-time AI Generation (大模型实时联网构思 + 智能算法兜底) */}
           {activeSourceTab === 'online' && (
             <div>
               {/* AI Controller Bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div style={{ fontSize: 12, color: '#7A6A5D', fontWeight: 600 }}>
-                  {aiSource || 'AI 实时搜索食材搭配中...'}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ fontSize: 11, color: '#7A6A5D', fontWeight: 600 }}>
+                  {aiSource || 'AI 思考中...'}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
                     type="button"
                     onClick={onOpenAiConfig}
                     style={{
-                      background: '#FFF0E5',
+                      background: hasConfiguredKey ? '#E8F5E9' : '#FFF0E5',
                       border: 'none',
-                      color: '#FF7417',
+                      color: hasConfiguredKey ? '#2E7D32' : '#FF7417',
                       fontSize: 11,
                       fontWeight: 700,
                       padding: '4px 8px',
@@ -353,12 +354,12 @@ export default function FridgeHeroModal({
                       gap: 3
                     }}
                   >
-                    <Settings size={12} /> 配置大模型 Key
+                    <Settings size={12} /> {hasConfiguredKey ? '已配置 Key' : '配置大模型 Key'}
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleTriggerAiSearch}
+                    onClick={() => handleTriggerAiSearch(selectedIngredients)}
                     disabled={isAiGenerating}
                     style={{
                       background: '#FF7417',

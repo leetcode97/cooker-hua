@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Key, Sparkles, Check, Globe, ShieldCheck } from 'lucide-react';
-
-const API_BASE = window.location.port === '5173' ? 'http://localhost:3001/api' : '/api';
+import { getAiConfig, saveAiConfig } from '../services/aiService';
 
 const PRESETS = [
   {
@@ -40,17 +39,14 @@ export default function AiConfigModal({ onClose }) {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/config`)
-      .then(res => res.json())
-      .then(res => {
-        if (res.success && res.config) {
-          setApiBase(res.config.apiBase || 'https://api.deepseek.com/v1');
-          setModel(res.config.model || 'deepseek-chat');
-          setHasKey(res.config.hasKey);
-          setMaskedKey(res.config.maskedKey || '');
-        }
-      })
-      .catch(() => {});
+    const cfg = getAiConfig();
+    setApiBase(cfg.apiBase || 'https://api.deepseek.com/v1');
+    setModel(cfg.model || 'deepseek-chat');
+    if (cfg.apiKey) {
+      setApiKey(cfg.apiKey);
+      setHasKey(true);
+      setMaskedKey(`${cfg.apiKey.slice(0, 4)}...${cfg.apiKey.slice(-4)}`);
+    }
   }, []);
 
   const handleApplyPreset = (preset) => {
@@ -62,26 +58,20 @@ export default function AiConfigModal({ onClose }) {
     e.preventDefault();
     setIsSaving(true);
 
-    fetch(`${API_BASE}/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, apiBase, model })
-    })
-      .then(res => res.json())
-      .then(res => {
-        setIsSaving(false);
-        if (res.success) {
-          setSaveSuccess(true);
-          setTimeout(() => {
-            setSaveSuccess(false);
-            onClose();
-          }, 1000);
-        }
-      })
-      .catch(() => {
-        setIsSaving(false);
-        alert('保存失败，请检查本地后台服务');
-      });
+    const config = {
+      apiKey: apiKey.trim(),
+      apiBase: apiBase.trim(),
+      model: model.trim()
+    };
+
+    saveAiConfig(config);
+
+    setIsSaving(false);
+    setSaveSuccess(true);
+    setTimeout(() => {
+      setSaveSuccess(false);
+      onClose();
+    }, 800);
   };
 
   return (
@@ -90,7 +80,7 @@ export default function AiConfigModal({ onClose }) {
         <div className="modal-header-bar">
           <div className="modal-header-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Sparkles size={20} color="#FF7417" />
-            配置 AI 实时大模型接口
+            配置 AI 大模型密钥
           </div>
           <button className="modal-close-btn" onClick={onClose}>
             <X size={18} />
@@ -99,7 +89,7 @@ export default function AiConfigModal({ onClose }) {
 
         <form onSubmit={handleSave} style={{ padding: '16px 20px 80px' }}>
           <div style={{ fontSize: 13, color: '#7A6A5D', marginBottom: 14, lineHeight: 1.5 }}>
-            绑定你的大模型 API Key（支持 <b>DeepSeek / Kimi / 通义千问 / OpenAI</b> 等），开启 100% 实时真实的联网食材灵感生成与智能菜谱解析！
+            在手机端或电脑端填入你的 <b>DeepSeek / Kimi / 通义千问 / OpenAI</b> 密钥，数据安全保存在你当前设备的浏览器中，开启 100% 实时真实的联网灵感生成！
           </div>
 
           {/* Presets */}
@@ -142,8 +132,8 @@ export default function AiConfigModal({ onClose }) {
             </label>
             <div style={{ position: 'relative' }}>
               <input
-                type="password"
-                placeholder={hasKey ? `当前已保存: ${maskedKey} (输入可覆盖)` : 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'}
+                type="text"
+                placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 style={{
@@ -158,7 +148,7 @@ export default function AiConfigModal({ onClose }) {
               />
             </div>
             <div style={{ fontSize: 11, color: '#A39386', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <ShieldCheck size={14} color="#4CAF50" /> 密钥仅保存在你电脑本地的 <code>data/config.json</code> 中，绝不上传任何第三方。
+              <ShieldCheck size={14} color="#4CAF50" /> 密钥安全保存在当前设备本地，永不上报任何中间服务器。
             </div>
           </div>
 
@@ -212,7 +202,7 @@ export default function AiConfigModal({ onClose }) {
             disabled={isSaving}
             style={{ width: '100%', padding: '12px 0', fontSize: 14, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           >
-            {isSaving ? '正在保存...' : saveSuccess ? '✅ 保存成功！' : '保存 AI 接口配置'}
+            {isSaving ? '正在保存...' : saveSuccess ? '✅ 保存成功！' : '保存配置'}
           </button>
         </form>
       </div>
