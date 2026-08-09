@@ -1,0 +1,415 @@
+import React, { useState } from 'react';
+import { X, Plus, Trash2 } from 'lucide-react';
+
+export default function AddRecipeModal({ onClose, onAddRecipe }) {
+  const [title, setTitle] = useState('');
+  const [subtitle, setSubtitle] = useState('');
+  const [cookTime, setCookTime] = useState('15');
+  const [calories, setCalories] = useState('320');
+  const [difficulty, setDifficulty] = useState('简单');
+  const [tags, setTags] = useState('家常菜, 快手菜');
+  const [selectedMealTypes, setSelectedMealTypes] = useState(['lunch']);
+  const [inductionFriendly, setInductionFriendly] = useState(true);
+  const [riceCookerFriendly, setRiceCookerFriendly] = useState(false);
+  
+  const [ingredients, setIngredients] = useState([
+    { name: '主要食材', amount: '200克', icon: '🥩', type: 'meat' },
+    { name: '生抽', amount: '15ml', icon: '🍾', type: 'pantry' }
+  ]);
+
+  const [steps, setSteps] = useState([
+    { stepNumber: 1, title: '准备工作', description: '洗净食材切好备用。', duration: 3 },
+    { stepNumber: 2, title: '下锅烹饪', description: '电磁炉大火热油倒入食材翻炒调味出锅。', duration: 5 }
+  ]);
+
+  const mealOptions = [
+    { key: 'breakfast', label: '🌅 早餐' },
+    { key: 'lunch', label: '☀️ 午餐' },
+    { key: 'dinner', label: '🌙 晚餐' },
+    { key: 'night', label: '🌌 夜宵' }
+  ];
+
+  const toggleMealType = (key) => {
+    if (selectedMealTypes.includes(key)) {
+      if (selectedMealTypes.length > 1) {
+        setSelectedMealTypes(selectedMealTypes.filter(k => k !== key));
+      }
+    } else {
+      setSelectedMealTypes([...selectedMealTypes, key]);
+    }
+  };
+
+  const handleAddIngredientRow = () => {
+    setIngredients([...ingredients, { name: '', amount: '', icon: '🥗', type: 'veg' }]);
+  };
+
+  const handleRemoveIngredient = (idx) => {
+    setIngredients(ingredients.filter((_, i) => i !== idx));
+  };
+
+  const handleAddStepRow = () => {
+    setSteps([
+      ...steps,
+      { stepNumber: steps.length + 1, title: `步骤 ${steps.length + 1}`, description: '', duration: 5 }
+    ]);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    const newRecipe = {
+      id: Date.now().toString(),
+      title,
+      subtitle: subtitle || '自己动手制作的美食小记。',
+      coverImage: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+      cookTime: `${cookTime} 分钟`,
+      minutes: parseInt(cookTime) || 15,
+      calories: `${calories} kcal`,
+      caloriesValue: parseInt(calories) || 300,
+      difficulty,
+      mealTypes: selectedMealTypes,
+      inductionFriendly,
+      riceCookerFriendly,
+      tags: tags.split(/[,，]/).map(t => t.trim()).filter(Boolean),
+      likes: 0,
+      isLiked: false,
+      isFavorite: true,
+      author: '我',
+      publishDate: new Date().toISOString().split('T')[0],
+      ingredients: ingredients.filter(i => i.name.trim()),
+      steps: steps.filter(s => s.description.trim())
+    };
+
+    onAddRecipe(newRecipe);
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content-drawer" style={{ height: '92vh', maxHeight: '92vh' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header-bar">
+          <div className="modal-header-title">
+            ✍️ 发布/创建自定义菜谱
+          </div>
+          <button className="modal-close-btn" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding: '20px 20px 80px' }}>
+          
+          {/* Dish Title */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 800, color: '#3D2C20', display: 'block', marginBottom: 4 }}>
+              菜品名称 *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="例如：黑椒牛肉粒"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              style={{
+                width: '100%',
+                borderRadius: 12,
+                border: '1.5px solid #F3E6D8',
+                padding: '10px 12px',
+                fontSize: 14,
+                outline: 'none',
+                backgroundColor: '#FFFFFF'
+              }}
+            />
+          </div>
+
+          {/* Meal Category Destination */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 800, color: '#3D2C20', display: 'block', marginBottom: 6 }}>
+              🎯 归类到哪个餐型：
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+              {mealOptions.map(opt => {
+                const isSelected = selectedMealTypes.includes(opt.key);
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => toggleMealType(opt.key)}
+                    style={{
+                      border: isSelected ? '1.5px solid #FF7417' : '1px solid #E0D4C5',
+                      background: isSelected ? '#FFF0E5' : '#FFFFFF',
+                      color: isSelected ? '#FF7417' : '#3D2C20',
+                      borderRadius: 10,
+                      padding: '6px 0',
+                      fontSize: 12,
+                      fontWeight: isSelected ? 800 : 500,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Subtitle */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#3D2C20', display: 'block', marginBottom: 4 }}>
+              一句话简介
+            </label>
+            <input
+              type="text"
+              placeholder="例如：鲜嫩多汁，快手美味"
+              value={subtitle}
+              onChange={(e) => setSubtitle(e.target.value)}
+              style={{
+                width: '100%',
+                borderRadius: 12,
+                border: '1.5px solid #F3E6D8',
+                padding: '10px 12px',
+                fontSize: 14,
+                outline: 'none',
+                backgroundColor: '#FFFFFF'
+              }}
+            />
+          </div>
+
+          {/* Cook Time & Calories */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#3D2C20', display: 'block', marginBottom: 4 }}>
+                用时 (分钟)
+              </label>
+              <input
+                type="number"
+                value={cookTime}
+                onChange={(e) => setCookTime(e.target.value)}
+                style={{
+                  width: '100%',
+                  borderRadius: 12,
+                  border: '1.5px solid #F3E6D8',
+                  padding: '8px 12px',
+                  fontSize: 14,
+                  outline: 'none',
+                  backgroundColor: '#FFFFFF'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#3D2C20', display: 'block', marginBottom: 4 }}>
+                热量 (kcal)
+              </label>
+              <input
+                type="number"
+                value={calories}
+                onChange={(e) => setCalories(e.target.value)}
+                style={{
+                  width: '100%',
+                  borderRadius: 12,
+                  border: '1.5px solid #F3E6D8',
+                  padding: '8px 12px',
+                  fontSize: 14,
+                  outline: 'none',
+                  backgroundColor: '#FFFFFF'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Cookware Switches */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => setInductionFriendly(!inductionFriendly)}
+              style={{
+                flex: 1,
+                border: inductionFriendly ? '1.5px solid #FF7417' : '1px solid #E0D4C5',
+                background: inductionFriendly ? '#FFF0E5' : '#FFFFFF',
+                color: inductionFriendly ? '#FF7417' : '#7A6A5D',
+                borderRadius: 10,
+                padding: '6px 8px',
+                fontSize: 12,
+                fontWeight: inductionFriendly ? 800 : 500,
+                cursor: 'pointer'
+              }}
+            >
+              ⚡ 适合电磁炉: {inductionFriendly ? '是' : '否'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRiceCookerFriendly(!riceCookerFriendly)}
+              style={{
+                flex: 1,
+                border: riceCookerFriendly ? '1.5px solid #2E7D32' : '1px solid #E0D4C5',
+                background: riceCookerFriendly ? '#E8F5E9' : '#FFFFFF',
+                color: riceCookerFriendly ? '#2E7D32' : '#7A6A5D',
+                borderRadius: 10,
+                padding: '6px 8px',
+                fontSize: 12,
+                fontWeight: riceCookerFriendly ? 800 : 500,
+                cursor: 'pointer'
+              }}
+            >
+              🍚 适合电饭煲: {riceCookerFriendly ? '是' : '否'}
+            </button>
+          </div>
+
+          {/* Section: Ingredients */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 800, color: '#3D2C20' }}>
+                所需食材清单
+              </label>
+              <button
+                type="button"
+                onClick={handleAddIngredientRow}
+                style={{
+                  background: '#FFF0E5',
+                  border: 'none',
+                  color: '#FF7417',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: 14,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <Plus size={14} /> 添加一行
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {ingredients.map((ing, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="食材名称"
+                    value={ing.name}
+                    onChange={(e) => {
+                      const copy = [...ingredients];
+                      copy[idx].name = e.target.value;
+                      setIngredients(copy);
+                    }}
+                    style={{
+                      flex: 1.5,
+                      borderRadius: 10,
+                      border: '1.5px solid #F3E6D8',
+                      padding: '6px 10px',
+                      fontSize: 13,
+                      backgroundColor: '#FFFFFF'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="用量(如200克)"
+                    value={ing.amount}
+                    onChange={(e) => {
+                      const copy = [...ingredients];
+                      copy[idx].amount = e.target.value;
+                      setIngredients(copy);
+                    }}
+                    style={{
+                      flex: 1,
+                      borderRadius: 10,
+                      border: '1.5px solid #F3E6D8',
+                      padding: '6px 10px',
+                      fontSize: 13,
+                      backgroundColor: '#FFFFFF'
+                    }}
+                  />
+                  {ingredients.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveIngredient(idx)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#C4B5A5',
+                        cursor: 'pointer',
+                        padding: 4
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section: Steps */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 800, color: '#3D2C20' }}>
+                烹饪步骤
+              </label>
+              <button
+                type="button"
+                onClick={handleAddStepRow}
+                style={{
+                  background: '#FFF0E5',
+                  border: 'none',
+                  color: '#FF7417',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: 14,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <Plus size={14} /> 增加一步
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {steps.map((st, idx) => (
+                <div key={idx} style={{ background: '#FFFFFF', border: '1px solid #F3E6D8', borderRadius: 12, padding: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#FF7417', marginBottom: 4 }}>
+                    步骤 {idx + 1}
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="描述这一步的具体动作、火力或关键诀窍..."
+                    value={st.description}
+                    onChange={(e) => {
+                      const copy = [...steps];
+                      copy[idx].description = e.target.value;
+                      setSteps(copy);
+                    }}
+                    style={{
+                      width: '100%',
+                      borderRadius: 8,
+                      border: '1px solid #E0D4C5',
+                      padding: 6,
+                      fontSize: 13,
+                      outline: 'none',
+                      resize: 'none',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ width: '100%', padding: '12px 0', fontSize: 14 }}
+          >
+            保存并加入菜谱库
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
