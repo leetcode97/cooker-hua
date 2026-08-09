@@ -1,12 +1,25 @@
 import React from 'react';
 import { Home, Compass, Plus, Calendar, User } from 'lucide-react';
 
-export default function Navigation({ activeTab, setActiveTab, onOpenAddRecipe }) {
+export default function Navigation({ 
+  activeTab, 
+  setActiveTab, 
+  onTabChange, 
+  onOpenAddRecipe 
+}) {
+  const handleSelectTab = (tabName) => {
+    if (onTabChange) {
+      onTabChange(tabName);
+    } else if (setActiveTab) {
+      setActiveTab(tabName);
+    }
+  };
+
   return (
     <nav className="bottom-nav-container">
       <div 
         className={`nav-item ${activeTab === 'home' ? 'active' : ''}`}
-        onClick={() => setActiveTab('home')}
+        onClick={() => handleSelectTab('home')}
       >
         <Home size={22} />
         <span>首页</span>
@@ -14,7 +27,7 @@ export default function Navigation({ activeTab, setActiveTab, onOpenAddRecipe })
 
       <div 
         className={`nav-item ${activeTab === 'discover' ? 'active' : ''}`}
-        onClick={() => setActiveTab('discover')}
+        onClick={() => handleSelectTab('discover')}
       >
         <Compass size={22} />
         <span>发现</span>
@@ -30,7 +43,7 @@ export default function Navigation({ activeTab, setActiveTab, onOpenAddRecipe })
 
       <div 
         className={`nav-item ${activeTab === 'journal' ? 'active' : ''}`}
-        onClick={() => setActiveTab('journal')}
+        onClick={() => handleSelectTab('journal')}
       >
         <Calendar size={22} />
         <span>记录</span>
@@ -38,7 +51,7 @@ export default function Navigation({ activeTab, setActiveTab, onOpenAddRecipe })
 
       <div 
         className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-        onClick={() => setActiveTab('profile')}
+        onClick={() => handleSelectTab('profile')}
       >
         <User size={22} />
         <span>我的</span>

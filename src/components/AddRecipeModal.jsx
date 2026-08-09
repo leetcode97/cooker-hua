@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Plus, Trash2, Camera, Image, Upload } from 'lucide-react';
 
 export default function AddRecipeModal({ onClose, onAddRecipe }) {
   const [title, setTitle] = useState('');
@@ -11,7 +11,10 @@ export default function AddRecipeModal({ onClose, onAddRecipe }) {
   const [selectedMealTypes, setSelectedMealTypes] = useState(['lunch']);
   const [inductionFriendly, setInductionFriendly] = useState(true);
   const [riceCookerFriendly, setRiceCookerFriendly] = useState(false);
+  const [coverImage, setCoverImage] = useState('');
   
+  const fileInputRef = useRef(null);
+
   const [ingredients, setIngredients] = useState([
     { name: '主要食材', amount: '200克', icon: '🥩', type: 'meat' },
     { name: '生抽', amount: '15ml', icon: '🍾', type: 'pantry' }
@@ -39,6 +42,17 @@ export default function AddRecipeModal({ onClose, onAddRecipe }) {
     }
   };
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        setCoverImage(uploadEvent.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddIngredientRow = () => {
     setIngredients([...ingredients, { name: '', amount: '', icon: '🥗', type: 'veg' }]);
   };
@@ -62,7 +76,7 @@ export default function AddRecipeModal({ onClose, onAddRecipe }) {
       id: Date.now().toString(),
       title,
       subtitle: subtitle || '自己动手制作的美食小记。',
-      coverImage: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+      coverImage: coverImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
       cookTime: `${cookTime} 分钟`,
       minutes: parseInt(cookTime) || 15,
       calories: `${calories} kcal`,
@@ -97,8 +111,96 @@ export default function AddRecipeModal({ onClose, onAddRecipe }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '20px 20px 80px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '16px 20px 80px' }}>
           
+          {/* Photo Upload Area */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 800, color: '#3D2C20', display: 'block', marginBottom: 6 }}>
+              📸 菜品照片（手机直接拍照或相册选取）
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+              style={{ display: 'none' }}
+            />
+
+            {coverImage ? (
+              <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', height: 160, border: '1.5px solid #FFCC80' }}>
+                <img src={coverImage} alt="菜品预览" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{
+                  position: 'absolute',
+                  bottom: 8,
+                  right: 8,
+                  display: 'flex',
+                  gap: 6
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      background: 'rgba(0,0,0,0.65)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 10,
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <Camera size={12} /> 更换
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCoverImage('')}
+                    style={{
+                      background: 'rgba(230,0,0,0.75)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 10,
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  height: 110,
+                  border: '2px dashed #E0D4C5',
+                  borderRadius: 16,
+                  background: '#FAF5EE',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  gap: 6,
+                  color: '#7A6A5D'
+                }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#FFF0E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Camera size={18} color="#FF7417" />
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#3D2C20' }}>
+                  点击拍照或上传美图
+                </div>
+                <div style={{ fontSize: 11, color: '#A39386' }}>
+                  支持 JPG / PNG / 手机即时拍摄
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Dish Title */}
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 13, fontWeight: 800, color: '#3D2C20', display: 'block', marginBottom: 4 }}>

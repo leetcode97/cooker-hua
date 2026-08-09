@@ -218,10 +218,15 @@ export default function App() {
       {/* Bottom Navigation */}
       <Navigation
         activeTab={activeTab}
+        setActiveTab={(tab) => {
+          setActiveMealCategory(null);
+          setActiveTab(tab);
+        }}
         onTabChange={(tab) => {
           setActiveMealCategory(null);
           setActiveTab(tab);
         }}
+        onOpenAddRecipe={() => setShowAddRecipeModal(true)}
       />
 
       {/* Modals */}

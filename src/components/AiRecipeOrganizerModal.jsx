@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Wand2, Upload, FileText, CheckCircle2, Zap, Settings } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Wand2, Upload, FileText, CheckCircle2, Zap, Settings, Camera, Image } from 'lucide-react';
 
 const API_BASE = window.location.port === '5173' ? 'http://localhost:3001/api' : '/api';
 
@@ -10,7 +10,10 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
   const [selectedMealTypes, setSelectedMealTypes] = useState(['lunch']); // default lunch
   const [inductionFriendly, setInductionFriendly] = useState(true);
   const [riceCookerFriendly, setRiceCookerFriendly] = useState(false);
+  const [coverImage, setCoverImage] = useState('');
   const [aiSource, setAiSource] = useState('');
+
+  const fileInputRef = useRef(null);
 
   const sampleTexts = [
     "【蒜苔炒香肠】蒜苔切段、香肠切片，热油1400W爆香蒜片，下香肠煸出油，倒入蒜苔大火翻炒2分钟，加生抽少许盐出锅，只需8分钟。",
@@ -31,6 +34,17 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
       }
     } else {
       setSelectedMealTypes([...selectedMealTypes, key]);
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        setCoverImage(uploadEvent.target.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -56,7 +70,7 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
             id: Date.now().toString(),
             title: parsed.title || '整理私房菜',
             subtitle: parsed.subtitle || '根据您的记录提炼的标准菜谱。',
-            coverImage: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+            coverImage: coverImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
             cookTime: parsed.cookTime || '12 分钟',
             minutes: parsed.minutes || 12,
             calories: parsed.calories || '320 kcal',
@@ -93,6 +107,7 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
     if (previewRecipe) {
       const finalRecipe = {
         ...previewRecipe,
+        coverImage: coverImage || previewRecipe.coverImage,
         mealTypes: selectedMealTypes,
         inductionFriendly,
         riceCookerFriendly
@@ -119,7 +134,7 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
           {!previewRecipe ? (
             <>
               <div style={{ fontSize: 13, color: '#7A6A5D', marginBottom: 14 }}>
-                粘贴文字笔记、聊天做菜记录，AI 会自动提炼为标准菜谱并归类到你指定的餐型中。
+                粘贴文字笔记、聊天做菜记录，可附带拍照，AI 会自动提炼为标准菜谱并归类到你指定的餐型中。
               </div>
 
               {/* 1. Meal Category Destination Selector */}
@@ -155,7 +170,61 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
                 </div>
               </div>
 
-              {/* 2. Cookware Options */}
+              {/* 2. Photo Upload or Take Photo */}
+              <div style={{ marginBottom: 14 }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+
+                {coverImage ? (
+                  <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', height: 100, border: '1.5px solid #FFCC80' }}>
+                    <img src={coverImage} alt="菜品预览" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button
+                      type="button"
+                      onClick={() => setCoverImage('')}
+                      style={{
+                        position: 'absolute',
+                        top: 6,
+                        right: 6,
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '2px 6px',
+                        fontSize: 10,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      删除照片
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: '1.5px dashed #E0D4C5',
+                      borderRadius: 12,
+                      background: '#FAF5EE',
+                      padding: '10px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                      color: '#7A6A5D',
+                      fontSize: 12
+                    }}
+                  >
+                    <Camera size={16} color="#FF7417" />
+                    <span>📸 点击附加做好的实拍照片（可选）</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Cookware Options */}
               <div style={{ marginBottom: 14, display: 'flex', gap: 10 }}>
                 <button
                   type="button"
@@ -250,7 +319,7 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
                   onClick={onOpenAiConfig}
                   style={{ padding: '12px 14px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}
                 >
-                  <Settings size={14} /> AI 密钥设置
+                  <Settings size={14} /> AI 密钥
                 </button>
 
                 <button
@@ -276,6 +345,10 @@ export default function AiRecipeOrganizerModal({ onClose, onAddParsedRecipe, onO
               </div>
 
               <div style={{ background: '#FFFFFF', border: '1px solid #F3E6D8', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+                {coverImage && (
+                  <img src={coverImage} alt="菜品实拍" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 12, marginBottom: 10 }} />
+                )}
+
                 <div style={{ fontSize: 17, fontWeight: 900, color: '#FF7417', marginBottom: 4 }}>
                   {previewRecipe.title}
                 </div>
