@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navigation from './components/Navigation';
 import HomeView from './views/HomeView';
 import DiscoverView from './views/DiscoverView';
+import JournalView from './views/JournalView';
 import MealCategoryView from './views/MealCategoryView';
 import ProfileView from './views/ProfileView';
 
@@ -242,6 +243,14 @@ export default function App() {
               onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
               onToggleFavorite={handleToggleFavorite}
               onToggleLike={handleToggleLike}
+            />
+          )}
+
+          {activeTab === 'journal' && (
+            <JournalView
+              cookedHistory={cookedHistory}
+              onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
+              onOpenAddRecipe={() => setShowAddRecipeModal(true)}
             />
           )}
 
