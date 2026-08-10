@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const STORAGE_CONFIG_KEY = 'cookoo_supabase_config';
 
-// Default Supabase project configuration (can be configured via UI or .env)
-const DEFAULT_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://oagpuvbquqyltfxqvyqf.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZ3B1dmJxdXF5bHRmeHF2eXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg0ODgwMDAsImV4cCI6MjA1NDA2NDAwMH0.sample';
+// User's project configuration
+const DEFAULT_SUPABASE_URL = 'https://elbmjvxmnohmzjtjqwqt.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_mgtaiL3ARE_-rV6imrqAkQ_8u6Pq8ys';
 
 export function getSupabaseConfig() {
   try {
