@@ -223,11 +223,11 @@ export default function App() {
           {activeTab === 'home' && (
             <HomeView
               recipes={recipes}
+              cookedHistory={cookedHistory}
               onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
-              onNavigateMeal={(mealKey) => setActiveMealCategory(mealKey)}
-              onOpenInspiration={() => setShowInspirationModal(true)}
+              onOpenMealCategory={(mealKey) => setActiveMealCategory(mealKey)}
               onOpenFridge={() => setShowFridgeModal(true)}
-              onOpenInduction={() => setShowInductionModal(true)}
+              onOpenAiOrganizer={() => setShowAiOrganizerModal(true)}
               onNavigateDiscover={() => setActiveTab('discover')}
               onToggleFavorite={handleToggleFavorite}
               onToggleLike={handleToggleLike}
