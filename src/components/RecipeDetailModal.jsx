@@ -493,29 +493,35 @@ export default function RecipeDetailModal({
           <div className="action-icon-group">
             <button 
               className="action-icon-btn" 
-              onClick={() => onToggleFavorite(recipe.id)}
+              onClick={() => {
+                onToggleFavorite(recipe.id);
+                showToast(recipe.isFavorite ? '⭐ 已移出收藏' : '🌟 已加入心仪收藏！');
+              }}
             >
               <Star 
                 size={22} 
                 fill={recipe.isFavorite ? '#FFB300' : 'none'} 
                 color={recipe.isFavorite ? '#FFB300' : '#7A6A5D'} 
               />
-              <span style={{ color: recipe.isFavorite ? '#FFB300' : '#7A6A5D' }}>
+              <span style={{ color: recipe.isFavorite ? '#FFB300' : '#7A6A5D', fontWeight: recipe.isFavorite ? 700 : 500 }}>
                 {recipe.isFavorite ? '已收藏' : '收藏'}
               </span>
             </button>
 
             <button 
               className="action-icon-btn" 
-              onClick={() => onToggleLike(recipe.id)}
+              onClick={() => {
+                onToggleLike(recipe.id);
+                showToast(recipe.isLiked ? '🤍 已取消点赞' : '❤️ 已点赞喜欢！');
+              }}
             >
               <Heart 
                 size={22} 
                 fill={recipe.isLiked ? '#FF4D4F' : 'none'} 
                 color={recipe.isLiked ? '#FF4D4F' : '#7A6A5D'} 
               />
-              <span style={{ color: recipe.isLiked ? '#FF4D4F' : '#7A6A5D' }}>
-                {recipe.likes}
+              <span style={{ color: recipe.isLiked ? '#FF4D4F' : '#7A6A5D', fontWeight: recipe.isLiked ? 700 : 500 }}>
+                {recipe.isLiked ? `已赞 (${recipe.likes || 1})` : `点赞 (${recipe.likes || 0})`}
               </span>
             </button>
 

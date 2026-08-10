@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { Settings, Award, Bookmark, ChefHat, Database, Download, RefreshCw, ChevronRight, Star, Utensils, Sparkles, Heart, Flame } from 'lucide-react';
+import { Settings, Award, Bookmark, ChefHat, Database, Download, RefreshCw, ChevronRight, Star, Utensils, Sparkles, Heart, Flame, Cloud, LogIn, LogOut, ShieldCheck, User } from 'lucide-react';
 
 export default function ProfileView({
   recipes = [],
   cookedHistory = [],
+  currentUser = null,
   onSelectRecipe,
   onExportData,
   onResetData,
-  onOpenAiConfig
+  onOpenAiConfig,
+  onOpenAuthModal,
+  onSignOut
 }) {
   const [activeSubTab, setActiveSubTab] = useState('favorites'); // 'favorites' or 'history'
 
   const favorites = recipes.filter(r => r.isFavorite);
-  const totalCount = recipes.length || 1;
   const historySafe = Array.isArray(cookedHistory) ? cookedHistory : [];
   const uniqueCookedIds = new Set(historySafe.map(item => item?.id || item?.title || Math.random()));
   const uniqueCookedCount = uniqueCookedIds.size;
@@ -29,83 +31,166 @@ export default function ProfileView({
   return (
     <div style={{ paddingBottom: 90, paddingLeft: 16, paddingRight: 16 }}>
       
-      {/* 🌟 1. 顶部精致大厨卡片 (温暖渐变 + 层次感) */}
+      {/* 🌟 1. 顶部精致大厨与账号卡片 */}
       <div style={{
         marginTop: 12,
-        marginBottom: 16,
+        marginBottom: 14,
         background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F0 100%)',
         border: '1.5px solid #F6DFCB',
         borderRadius: 24,
-        padding: '20px 18px',
+        padding: '18px 16px',
         boxShadow: '0 8px 24px rgba(230, 100, 20, 0.07)',
         display: 'flex',
         alignItems: 'center',
-        gap: 16
+        gap: 14
       }}>
         {/* Avatar with gradient ring */}
         <div style={{
           position: 'relative',
-          width: 64,
-          height: 64,
+          width: 58,
+          height: 58,
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #FFE0B2 0%, #FFCC80 100%)',
+          background: currentUser ? 'linear-gradient(135deg, #FFE082 0%, #FFB300 100%)' : 'linear-gradient(135deg, #FFE0B2 0%, #FFCC80 100%)',
           border: '2.5px solid #FFFFFF',
           boxShadow: '0 4px 12px rgba(255, 116, 23, 0.25)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 32,
+          fontSize: 28,
           flexShrink: 0
         }}>
-          🍳
+          {currentUser ? '👨‍🍳' : '🍳'}
           <div style={{
             position: 'absolute',
             bottom: -2,
             right: -2,
-            width: 20,
-            height: 20,
+            width: 18,
+            height: 18,
             borderRadius: '50%',
-            background: '#FF7417',
+            background: currentUser ? '#2E7D32' : '#FF7417',
             color: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: 900,
             border: '2px solid white'
           }}>
-            ✓
+            {currentUser ? '✓' : '•'}
           </div>
         </div>
 
         {/* User Info */}
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 18, fontWeight: 900, color: '#3D2C20' }}>
-              美食探索者
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#3D2C20', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser?.email ? currentUser.email.split('@')[0] : '美食探索者'}
             </span>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 800,
               color: chefBadge.color,
               background: chefBadge.bg,
-              padding: '2px 8px',
-              borderRadius: 12,
+              padding: '2px 6px',
+              borderRadius: 10,
               border: `1px solid ${chefBadge.color}33`
             }}>
               {chefBadge.title}
             </span>
-            <span style={{ fontSize: 11, color: '#9C6F4B' }}>
-              好好吃饭 · 热爱生活
-            </span>
+            
+            {currentUser ? (
+              <span style={{ fontSize: 10, color: '#2E7D32', background: '#E8F5E9', padding: '2px 6px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Cloud size={10} /> 云端已同步
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, color: '#E65100', background: '#FFF3E0', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>
+                📱 单机未登录
+              </span>
+            )}
           </div>
+        </div>
+
+        {/* Auth Action Button */}
+        <div>
+          {currentUser ? (
+            <button
+              onClick={onSignOut}
+              style={{
+                border: '1px solid #FFCDD2',
+                background: '#FFEBEE',
+                color: '#C62828',
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '6px 10px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              <LogOut size={12} /> 退出
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAuthModal}
+              style={{
+                border: 'none',
+                background: '#FF7417',
+                color: 'white',
+                fontSize: 11,
+                fontWeight: 800,
+                padding: '7px 12px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                boxShadow: '0 2px 8px rgba(255, 116, 23, 0.3)'
+              }}
+            >
+              <LogIn size={12} /> 登录/同步
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 📊 2. 三大核心数据统计卡片 (网格卡片化) */}
+      {/* ☁️ 登录推广横幅 (未登录时展示) */}
+      {!currentUser && (
+        <div 
+          onClick={onOpenAuthModal}
+          style={{
+            marginBottom: 14,
+            background: 'linear-gradient(135deg, #FF7417 0%, #FF9800 100%)',
+            color: 'white',
+            borderRadius: 18,
+            padding: '12px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(255, 116, 23, 0.25)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Cloud size={18} color="white" />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900 }}>开启多端实时云同步</div>
+              <div style={{ fontSize: 11, opacity: 0.9 }}>手机拍照发菜谱，电脑端秒级互通</div>
+            </div>
+          </div>
+          <div style={{ background: 'white', color: '#FF7417', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20 }}>
+            立即登录
+          </div>
+        </div>
+      )}
+
+      {/* 📊 2. 三大核心数据统计卡片 */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr 1fr',
@@ -164,7 +249,7 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* 📑 3. 标签切换器 (我的收藏 vs 做菜记录) */}
+      {/* 📑 3. 标签切换器 */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', background: '#F2E8DC', borderRadius: 16, padding: 4, gap: 4 }}>
           <button
@@ -320,6 +405,19 @@ export default function ProfileView({
         <div style={{ background: '#FFFFFF', border: '1px solid #F3E6D8', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
           
           <div 
+            onClick={onOpenAuthModal}
+            style={{ padding: '15px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #F6EBE0' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 700, color: '#3D2C20' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Cloud size={16} color="#1976D2" />
+              </div>
+              {currentUser ? `多端云同步管理 (${currentUser.email})` : '开启多端实时云同步 (登录/注册)'}
+            </div>
+            <ChevronRight size={16} color="#A39386" />
+          </div>
+
+          <div 
             onClick={onOpenAiConfig}
             style={{ padding: '15px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #F6EBE0' }}
           >
@@ -363,10 +461,10 @@ export default function ProfileView({
               <div style={{ width: 28, height: 28, borderRadius: 8, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Database size={16} color="#4CAF50" />
               </div>
-              本地独立文件数据库 (零 Cookie)
+              离线优先 + 云端双轨驱动
             </div>
             <span style={{ fontSize: 11, color: '#2E7D32', background: '#E8F5E9', padding: '2px 8px', borderRadius: 8, fontWeight: 700 }}>
-              ● 自动持久化
+              ● 极速读写
             </span>
           </div>
         </div>
