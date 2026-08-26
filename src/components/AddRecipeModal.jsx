@@ -49,13 +49,43 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        setCoverImage(uploadEvent.target.result);
+    if (!file) return;
+
+    // Use Canvas for frontend compression to avoid massive 20MB Base64 strings
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const img = new Image();
+      img.onload = () => {
+        // Calculate dimensions to maintain aspect ratio with a max width/height of 800px
+        const MAX_SIZE = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Compress to JPEG format with 70% quality (drastically reduces file size)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        setCoverImage(compressedBase64);
       };
-      reader.readAsDataURL(file);
-    }
+      img.src = uploadEvent.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddIngredientRow = () => {
