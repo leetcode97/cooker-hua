@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Award, Bookmark, ChefHat, Database, Download, RefreshCw, ChevronRight, Star, Utensils, Sparkles, Heart, Flame } from 'lucide-react';
+import { Settings, Award, Bookmark, ChefHat, Database, Download, RefreshCw, ChevronRight, Star, Utensils, Sparkles, Heart, Flame, Cloud, ShieldCheck, User, Link2, Copy, Trash2 } from 'lucide-react';
 
 export default function ProfileView({
   recipes = [],
@@ -7,12 +7,14 @@ export default function ProfileView({
   onSelectRecipe,
   onExportData,
   onResetData,
-  onOpenAiConfig
+  onOpenAiConfig,
+  onOpenSyncCodeModal,
+  onDeleteHistoryItem,
+  onToggleFavorite
 }) {
   const [activeSubTab, setActiveSubTab] = useState('favorites'); // 'favorites' or 'history'
 
   const favorites = recipes.filter(r => r.isFavorite);
-  const totalCount = recipes.length || 1;
   const historySafe = Array.isArray(cookedHistory) ? cookedHistory : [];
   const uniqueCookedIds = new Set(historySafe.map(item => item?.id || item?.title || Math.random()));
   const uniqueCookedCount = uniqueCookedIds.size;
@@ -29,24 +31,24 @@ export default function ProfileView({
   return (
     <div style={{ paddingBottom: 90, paddingLeft: 16, paddingRight: 16 }}>
       
-      {/* 🌟 1. 顶部精致大厨卡片 (温暖渐变 + 层次感) */}
+      {/* 🌟 1. 顶部大厨卡片 */}
       <div style={{
         marginTop: 12,
-        marginBottom: 16,
+        marginBottom: 12,
         background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF8F0 100%)',
         border: '1.5px solid #F6DFCB',
         borderRadius: 24,
-        padding: '20px 18px',
+        padding: '18px 16px',
         boxShadow: '0 8px 24px rgba(230, 100, 20, 0.07)',
         display: 'flex',
         alignItems: 'center',
-        gap: 16
+        gap: 14
       }}>
-        {/* Avatar with gradient ring */}
+        {/* Avatar */}
         <div style={{
           position: 'relative',
-          width: 64,
-          height: 64,
+          width: 58,
+          height: 58,
           borderRadius: '50%',
           background: 'linear-gradient(135deg, #FFE0B2 0%, #FFCC80 100%)',
           border: '2.5px solid #FFFFFF',
@@ -54,7 +56,7 @@ export default function ProfileView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 32,
+          fontSize: 28,
           flexShrink: 0
         }}>
           🍳
@@ -62,15 +64,15 @@ export default function ProfileView({
             position: 'absolute',
             bottom: -2,
             right: -2,
-            width: 20,
-            height: 20,
+            width: 18,
+            height: 18,
             borderRadius: '50%',
             background: '#FF7417',
             color: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: 900,
             border: '2px solid white'
           }}>
@@ -79,21 +81,21 @@ export default function ProfileView({
         </div>
 
         {/* User Info */}
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 18, fontWeight: 900, color: '#3D2C20' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 17, fontWeight: 900, color: '#3D2C20' }}>
               美食探索者
             </span>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 800,
               color: chefBadge.color,
               background: chefBadge.bg,
-              padding: '2px 8px',
-              borderRadius: 12,
+              padding: '2px 6px',
+              borderRadius: 10,
               border: `1px solid ${chefBadge.color}33`
             }}>
               {chefBadge.title}
@@ -105,7 +107,8 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* 📊 2. 三大核心数据统计卡片 (网格卡片化) */}
+
+      {/* 📊 3. 三大核心数据统计卡片 */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr 1fr',
@@ -164,7 +167,7 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* 📑 3. 标签切换器 (我的收藏 vs 做菜记录) */}
+      {/* 📑 4. 标签切换器 */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', background: '#F2E8DC', borderRadius: 16, padding: 4, gap: 4 }}>
           <button
@@ -219,7 +222,7 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* 🍱 4. 列表内容区域 */}
+      {/* 🍱 5. 列表内容区域 */}
       <div style={{ marginBottom: 24 }}>
         {activeSubTab === 'favorites' ? (
           favorites.length > 0 ? (
@@ -245,7 +248,16 @@ export default function ProfileView({
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#3D2C20' }}>{recipe.title}</div>
                     <div style={{ fontSize: 11, color: '#8D6E63', marginTop: 2 }}>{recipe.cookTime} · {recipe.calories}</div>
                   </div>
-                  <Star size={18} fill="#FFB300" color="#FFB300" />
+                  <div 
+                    title="取消收藏"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite && onToggleFavorite(recipe.id);
+                    }}
+                    style={{ padding: 6, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    <Star size={20} fill="#FFB300" color="#FFB300" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -289,7 +301,30 @@ export default function ProfileView({
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#3D2C20' }}>{item.title}</div>
                     <div style={{ fontSize: 11, color: '#8D6E63', marginTop: 2 }}>{item.cookTime} · 打卡成果</div>
                   </div>
-                  <Utensils size={18} color="#FF7417" />
+                  {onDeleteHistoryItem ? (
+                    <button
+                      type="button"
+                      title="删除此笔打卡记录"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`确定删除“${item.title}”的打卡记录吗？`)) {
+                          onDeleteHistoryItem(item.id || item.timestamp);
+                        }
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#E57373',
+                        padding: 6,
+                        cursor: 'pointer',
+                        borderRadius: 8
+                      }}
+                    >
+                      <Trash2 size={16} color="#E57373" />
+                    </button>
+                  ) : (
+                    <Utensils size={18} color="#FF7417" />
+                  )}
                 </div>
               ))}
             </div>
@@ -312,19 +347,32 @@ export default function ProfileView({
         )}
       </div>
 
-      {/* ⚙️ 5. AI 与系统设置列表 */}
+      {/* ⚙️ 6. 系统与 AI 设置 */}
       <div>
         <div style={{ fontSize: 14, fontWeight: 800, color: '#3D2C20', marginBottom: 10 }}>
-          ⚙️ AI 接口与数据管理
+          ⚙️ 系统设置与数据管理
         </div>
         <div style={{ background: '#FFFFFF', border: '1px solid #F3E6D8', borderRadius: 20, overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
           
+          <div 
+            onClick={onOpenSyncCodeModal}
+            style={{ padding: '15px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #F6EBE0' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 700, color: '#3D2C20' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFF0E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Link2 size={16} color="#FF7417" />
+              </div>
+              配对其他设备 (手机/电脑多端同步)
+            </div>
+            <ChevronRight size={16} color="#A39386" />
+          </div>
+
           <div 
             onClick={onOpenAiConfig}
             style={{ padding: '15px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #F6EBE0' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 700, color: '#3D2C20' }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFF0E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFF8E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Sparkles size={16} color="#FF7417" />
               </div>
               配置 AI 大模型密钥 (DeepSeek / Kimi / Qwen)
@@ -337,8 +385,8 @@ export default function ProfileView({
             style={{ padding: '15px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #F6EBE0' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 700, color: '#3D2C20' }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFF8E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Download size={16} color="#FF9800" />
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Download size={16} color="#1976D2" />
               </div>
               导出 / 备份我的美食数据库 (JSON)
             </div>
@@ -363,10 +411,10 @@ export default function ProfileView({
               <div style={{ width: 28, height: 28, borderRadius: 8, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Database size={16} color="#4CAF50" />
               </div>
-              本地独立文件数据库 (零 Cookie)
+              免登录 · 云端 365 天永不休眠
             </div>
             <span style={{ fontSize: 11, color: '#2E7D32', background: '#E8F5E9', padding: '2px 8px', borderRadius: 8, fontWeight: 700 }}>
-              ● 自动持久化
+              ● 24H 实时通电
             </span>
           </div>
         </div>

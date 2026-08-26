@@ -1,64 +1,99 @@
 import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Flame, Plus, CheckCircle2, Award } from 'lucide-react';
+import { Calendar as CalendarIcon, Flame, Plus, CheckCircle2, Award, Utensils, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 
-export default function JournalView({ cookedHistory, onSelectRecipe, onOpenAddRecipe }) {
-  const [selectedDay, setSelectedDay] = useState(7); // default 7th Aug
+export default function JournalView({ cookedHistory = [], onSelectRecipe, onOpenAddRecipe, onDeleteHistoryItem }) {
+  const today = new Date();
+  const currentDayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday...
+  
+  // Generate current 7-day week starting from Monday
+  const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+  const mondayDate = new Date(today);
+  mondayDate.setDate(today.getDate() + mondayOffset);
 
-  const weekDays = [
-    { day: '一', date: 3, label: '08-03' },
-    { day: '二', date: 4, label: '08-04' },
-    { day: '三', date: 5, label: '08-05' },
-    { day: '四', date: 6, label: '08-06' },
-    { day: '五', date: 7, label: '08-07', isToday: true },
-    { day: '六', date: 8, label: '08-08' },
-    { day: '日', date: 9, label: '08-09' },
-  ];
+  const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mondayDate);
+    d.setDate(mondayDate.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const isToday = d.toDateString() === today.toDateString();
+    return {
+      dayName: dayNames[i],
+      dateNum: d.getDate(),
+      fullDate: dateStr,
+      isToday
+    };
+  });
 
-  const totalCalories = cookedHistory.reduce((sum, item) => sum + (item.caloriesValue || 400), 0);
+  const todayStr = today.toISOString().split('T')[0];
+  const [selectedDateStr, setSelectedDateStr] = useState(todayStr);
+
+  const historySafe = Array.isArray(cookedHistory) ? cookedHistory : [];
+  
+  // Filter history for selected date or show all if none on that day
+  const filteredHistory = historySafe.filter(item => item.date === selectedDateStr);
+  const displayHistory = filteredHistory.length > 0 ? filteredHistory : historySafe;
+
+  const totalCalories = displayHistory.reduce((sum, item) => {
+    const cal = typeof item.calories === 'string' ? parseInt(item.calories) : item.calories;
+    return sum + (cal || 350);
+  }, 0);
 
   return (
-    <div style={{ padding: '16px 20px 80px' }}>
-      <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 800, color: '#3D2C20', marginBottom: 16 }}>
-        美食日志与打卡
+    <div style={{ padding: '16px 20px 90px' }}>
+      <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 900, color: '#3D2C20', marginBottom: 14 }}>
+        📅 美食日志与自炊打卡
       </div>
 
       {/* Week Calendar Card */}
       <div style={{
         background: '#FFFFFF',
-        border: '1px solid #F3E6D8',
-        borderRadius: 20,
-        padding: 16,
-        boxShadow: '0 4px 12px rgba(180, 120, 70, 0.08)',
+        border: '1.5px solid #F3E6D8',
+        borderRadius: 22,
+        padding: '16px 14px',
+        boxShadow: '0 4px 16px rgba(180, 120, 70, 0.06)',
         marginBottom: 16
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#3D2C20', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <CalendarIcon size={18} color="#FF7417" />
-            2026 年 8 月第 1 周
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#3D2C20', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CalendarIcon size={16} color="#FF7417" />
+            {today.getFullYear()} 年 {today.getMonth() + 1} 月自炊周历
           </div>
-          <span style={{ fontSize: 12, color: '#FF7417', fontWeight: 700 }}>
-            已打卡 {cookedHistory.length} 餐
+          <span style={{ fontSize: 11, color: '#FF7417', fontWeight: 800, background: '#FFF0E5', padding: '2px 8px', borderRadius: 8 }}>
+            累计打卡 {historySafe.length} 顿
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, textAlign: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, textAlign: 'center' }}>
           {weekDays.map(item => {
-            const isSelected = selectedDay === item.date;
+            const isSelected = selectedDateStr === item.fullDate;
+            const hasLogOnDay = historySafe.some(h => h.date === item.fullDate);
             return (
               <div 
-                key={item.date}
-                onClick={() => setSelectedDay(item.date)}
+                key={item.fullDate}
+                onClick={() => setSelectedDateStr(item.fullDate)}
                 style={{
-                  background: isSelected ? 'linear-gradient(135deg, #FF8C2B 0%, #FF6500 100%)' : item.isToday ? '#FFF0E5' : '#FFFBF6',
+                  background: isSelected ? 'linear-gradient(135deg, #FF7417 0%, #FF9800 100%)' : item.isToday ? '#FFF0E5' : '#FFFBF6',
                   color: isSelected ? 'white' : item.isToday ? '#FF7417' : '#3D2C20',
-                  borderRadius: 12,
+                  borderRadius: 14,
                   padding: '8px 0',
                   cursor: 'pointer',
-                  border: item.isToday && !isSelected ? '1px solid #FF7417' : '1px solid #F3E6D8'
+                  border: isSelected ? 'none' : item.isToday ? '1.5px solid #FF7417' : '1px solid #F3E6D8',
+                  boxShadow: isSelected ? '0 4px 10px rgba(255, 116, 23, 0.3)' : 'none',
+                  position: 'relative',
+                  transition: 'all 0.15s ease'
                 }}
               >
-                <div style={{ fontSize: 11, opacity: 0.8 }}>周{item.day}</div>
-                <div style={{ fontSize: 15, fontWeight: 800, marginTop: 2 }}>{item.date}</div>
+                <div style={{ fontSize: 10, opacity: isSelected ? 0.9 : 0.7 }}>周{item.dayName}</div>
+                <div style={{ fontSize: 15, fontWeight: 900, marginTop: 2 }}>{item.dateNum}</div>
+                {hasLogOnDay && (
+                  <div style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: isSelected ? 'white' : '#4CAF50',
+                    margin: '3px auto 0'
+                  }} />
+                )}
               </div>
             );
           })}
@@ -69,75 +104,118 @@ export default function JournalView({ cookedHistory, onSelectRecipe, onOpenAddRe
       <div style={{
         background: 'linear-gradient(135deg, #FFF9F2 0%, #FFEEDD 100%)',
         border: '1px solid #F7DFCA',
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: 18,
+        padding: '14px 16px',
         display: 'flex',
         alignItems: 'center',
-        justify: 'space-between',
-        marginBottom: 20
+        justifyContent: 'space-between',
+        marginBottom: 18
       }}>
         <div>
-          <div style={{ fontSize: 12, color: '#7A6A5D' }}>今日摄入评估</div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#3D2C20', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Flame size={20} color="#FF7417" fill="#FF7417" />
-            {totalCalories} <span style={{ fontSize: 12, fontWeight: 600 }}>kcal</span>
+          <div style={{ fontSize: 11, color: '#7A6A5D', fontWeight: 600 }}>
+            {selectedDateStr === todayStr ? '今日摄入评估' : `${selectedDateStr.slice(5)} 摄入评估`}
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#3D2C20', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+            <Flame size={18} color="#FF7417" fill="#FF7417" />
+            {totalCalories} <span style={{ fontSize: 11, fontWeight: 600 }}>kcal</span>
           </div>
         </div>
 
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 12, color: '#4CAF50', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Award size={16} /> 健康平衡范围
+          <div style={{ fontSize: 11, color: '#2E7D32', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Award size={14} /> 均衡能量自炊
           </div>
-          <div style={{ fontSize: 11, color: '#7A6A5D', marginTop: 2 }}>
-            建议日摄入: 1800 - 2200 kcal
+          <div style={{ fontSize: 10, color: '#8D6E63', marginTop: 2 }}>
+            健康一人食 · 控油少盐
           </div>
         </div>
       </div>
 
       {/* Cooked History Timeline */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: '#3D2C20' }}>
-          🍽️ 今日已做美食 ({cookedHistory.length})
+        <div style={{ fontSize: 15, fontWeight: 900, color: '#3D2C20' }}>
+          🍽️ 美食自炊记录 ({displayHistory.length})
         </div>
         <button
           onClick={onOpenAddRecipe}
-          style={{ background: 'none', border: 'none', color: '#FF7417', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}
+          style={{
+            background: '#FFF0E5',
+            border: '1px solid #FFD0B0',
+            color: '#FF7417',
+            fontSize: 12,
+            fontWeight: 800,
+            padding: '4px 10px',
+            borderRadius: 12,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3
+          }}
         >
-          <Plus size={16} /> 记一笔
+          <Plus size={14} /> 拍照片记一笔
         </button>
       </div>
 
-      {cookedHistory.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {cookedHistory.map((item, idx) => (
+      {displayHistory.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {displayHistory.map((item, idx) => (
             <div
               key={idx}
               onClick={() => onSelectRecipe(item)}
               style={{
                 background: '#FFFFFF',
                 border: '1px solid #F3E6D8',
-                borderRadius: 16,
-                padding: 14,
+                borderRadius: 18,
+                padding: 12,
                 display: 'flex',
                 gap: 12,
                 alignItems: 'center',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
               }}
             >
               <img
                 src={item.coverImage}
                 alt={item.title}
-                style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover' }}
+                style={{ width: 62, height: 62, borderRadius: 14, objectFit: 'cover' }}
               />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#3D2C20' }}>{item.title}</div>
-                <div style={{ fontSize: 12, color: '#7A6A5D', margin: '2px 0' }}>
-                  烹饪用时: {item.cookTime} · {item.calories}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#3D2C20' }}>{item.title}</div>
+                  <span style={{ fontSize: 10, color: '#A39386' }}>{item.date || '今日'}</span>
                 </div>
-                <div style={{ fontSize: 11, color: '#4CAF50', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <CheckCircle2 size={12} /> 厨艺打卡成功 · 营养满满
+                <div style={{ fontSize: 11, color: '#7A6A5D', margin: '3px 0' }}>
+                  用时: {item.cookTime} · {item.calories || '320 kcal'}
+                </div>
+                <div style={{ fontSize: 10, color: '#2E7D32', display: 'flex', alignItems: 'center', gap: 3, fontWeight: 700 }}>
+                  <CheckCircle2 size={12} /> 自炊大厨打卡成功 · 营养美味
                 </div>
               </div>
+              {onDeleteHistoryItem && (
+                <button
+                  type="button"
+                  title="删除此笔打卡记录"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm(`确定删除“${item.title}”的打卡记录吗？`)) {
+                      onDeleteHistoryItem(item.id || item.timestamp);
+                    }
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#B0BEC5',
+                    padding: 6,
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Trash2 size={16} color="#E57373" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -145,15 +223,15 @@ export default function JournalView({ cookedHistory, onSelectRecipe, onOpenAddRe
         <div style={{
           background: '#FFFFFF',
           border: '1.5px dashed #F3E6D8',
-          borderRadius: 16,
-          padding: 30,
+          borderRadius: 20,
+          padding: '30px 20px',
           textAlign: 'center',
           color: '#A39386'
         }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🍳</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#3D2C20' }}>今天还没有做菜记录</div>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🍳</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#3D2C20' }}>今天还没有做菜记录</div>
           <div style={{ fontSize: 12, color: '#7A6A5D', marginTop: 4 }}>
-            去首页抽一张灵感卡，做完后点击“记录做过”吧！
+            做完一道菜后点击“记录做过”，或点右上角拍照发菜谱！
           </div>
         </div>
       )}

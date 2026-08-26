@@ -1,32 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
+import React, { useState, useEffect, useRef } from 'react';
 import Navigation from './components/Navigation';
 import HomeView from './views/HomeView';
 import DiscoverView from './views/DiscoverView';
 import JournalView from './views/JournalView';
-import ProfileView from './views/ProfileView';
 import MealCategoryView from './views/MealCategoryView';
+import ProfileView from './views/ProfileView';
 
+// Modals
+import RecipeDetailModal from './components/RecipeDetailModal';
+import CookingModeModal from './components/CookingModeModal';
 import InspirationCardModal from './components/InspirationCardModal';
 import FridgeHeroModal from './components/FridgeHeroModal';
 import AiRecipeOrganizerModal from './components/AiRecipeOrganizerModal';
 import InductionCookerModal from './components/InductionCookerModal';
-import RecipeDetailModal from './components/RecipeDetailModal';
-import CookingModeModal from './components/CookingModeModal';
 import AddRecipeModal from './components/AddRecipeModal';
 import AiConfigModal from './components/AiConfigModal';
 
-import { DEFAULT_DATABASE } from './data/defaultDatabase';
-
-const API_BASE = window.location.port === '5173' ? 'http://localhost:3001/api' : '/api';
+import { loadDatabaseState, saveDatabaseState } from './services/dbStorage';
+import { fetchGlobalState, pushToGlobalState, localClientId } from './services/cfSyncService';
 
 export default function App() {
-  const [recipes, setRecipes] = useState(DEFAULT_DATABASE.recipes);
-  const [cookedHistory, setCookedHistory] = useState(DEFAULT_DATABASE.userState.cookedHistory || []);
+  // Initialize state directly from universal persistent storage
+  const [dbState, setDbState] = useState(() => loadDatabaseState());
+  const recipes = dbState.recipes;
+  const userState = dbState.userState || {};
+  const cookedHistory = userState.cookedHistory || [];
 
   const [activeTab, setActiveTab] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeMealCategory, setActiveMealCategory] = useState(null); // 'breakfast', 'lunch', 'dinner', 'night' or null
+  const [activeMealCategory, setActiveMealCategory] = useState(null);
 
   // Modals state
   const [showInspirationModal, setShowInspirationModal] = useState(false);
@@ -35,60 +37,119 @@ export default function App() {
   const [showInductionModal, setShowInductionModal] = useState(false);
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
   const [showAiConfigModal, setShowAiConfigModal] = useState(false);
-  const [selectedRecipeDetail, setSelectedRecipeDetail] = useState(null);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [cookingModeRecipe, setCookingModeRecipe] = useState(null);
 
-  // Load from local database file via API
+  // Derive active recipe detail reactively
+  const selectedRecipeDetail = recipes.find(r => r.id === selectedRecipeId) || null;
+
+  const dbStateRef = useRef(dbState);
+  dbStateRef.current = dbState;
+
+  // Auto Cloudflare KV Sync Polling
+  const triggerCloudflareSync = async () => {
+    const cloudData = await fetchGlobalState();
+    
+    // 如果云端是空的，只向云端推送，不覆盖本地
+    if (!cloudData) {
+      pushToGlobalState(dbStateRef.current.recipes, dbStateRef.current.userState);
+      return;
+    }
+
+    // 防自我覆盖机制：如果是自己刚推送到云端的，忽略
+    if (cloudData.senderId === localClientId) {
+      return; 
+    }
+    
+    // 强制采用云端最新事实
+    const nextRecipes = cloudData.recipes || [];
+    const nextUserState = cloudData.userState || {};
+    
+    setDbState({ recipes: nextRecipes, userState: nextUserState });
+    saveDatabaseState(nextRecipes, nextUserState); // 更新本地缓存
+  };
+
   useEffect(() => {
-    fetch(`${API_BASE}/db`)
-      .then(res => res.json())
-      .then(res => {
-        if (res.success && res.data) {
-          setRecipes(res.data.recipes || DEFAULT_DATABASE.recipes);
-          setCookedHistory(res.data.userState?.cookedHistory || []);
-        }
-      })
-      .catch(() => {});
+    triggerCloudflareSync(); // 挂载时立即执行一次
+
+    // 2.5s 轮询拉取（由于去掉了系统时间对比，现在的轮询非常安全）
+    const syncInterval = setInterval(() => {
+      triggerCloudflareSync();
+    }, 2500);
+
+    const handleFocus = () => {
+      triggerCloudflareSync();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        triggerCloudflareSync();
+      }
+    });
+
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
-  // Sync state changes to local database file
-  const syncUserState = (newCookedHistory) => {
-    fetch(`${API_BASE}/user-state`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cookedHistory: newCookedHistory })
-    }).catch(() => {});
+  // Save to persistent storage and push to Firebase
+  const updateDatabaseState = (nextRecipes, nextUserState) => {
+    const normalized = saveDatabaseState(nextRecipes, nextUserState);
+    setDbState(normalized);
+    pushToGlobalState(normalized.recipes, normalized.userState);
   };
 
-  // Toggle Favorite
+  // Toggle Favorite (Supports both Favoriting and Un-favoriting seamlessly)
   const handleToggleFavorite = (recipeId) => {
-    setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, isFavorite: !r.isFavorite } : r));
-    
-    fetch(`${API_BASE}/recipes/favorite`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipeId })
-    }).catch(() => {});
+    const activeFavSet = new Set(
+      Array.isArray(userState.favoriteIds)
+        ? userState.favoriteIds
+        : recipes.filter(r => r.isFavorite).map(r => r.id)
+    );
+
+    if (activeFavSet.has(recipeId)) {
+      activeFavSet.delete(recipeId);
+    } else {
+      activeFavSet.add(recipeId);
+    }
+
+    const nextFavArray = Array.from(activeFavSet);
+    const nextUserState = {
+      ...userState,
+      favoriteIds: nextFavArray,
+      lastModified: Date.now()
+    };
+
+    updateDatabaseState(recipes, nextUserState);
   };
 
-  // Toggle Like
+  // Toggle Like (Supports both Liking and Un-liking seamlessly)
   const handleToggleLike = (recipeId) => {
-    setRecipes(prev => prev.map(r => {
-      if (r.id === recipeId) {
-        const nextLiked = !r.isLiked;
-        return { ...r, isLiked: nextLiked, likes: nextLiked ? r.likes + 1 : r.likes - 1 };
-      }
-      return r;
-    }));
+    const activeLikeSet = new Set(
+      Array.isArray(userState.likedIds)
+        ? userState.likedIds
+        : recipes.filter(r => r.isLiked).map(r => r.id)
+    );
 
-    fetch(`${API_BASE}/recipes/like`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipeId })
-    }).catch(() => {});
+    if (activeLikeSet.has(recipeId)) {
+      activeLikeSet.delete(recipeId);
+    } else {
+      activeLikeSet.add(recipeId);
+    }
+
+    const nextLikeArray = Array.from(activeLikeSet);
+    const nextUserState = {
+      ...userState,
+      likedIds: nextLikeArray,
+      lastModified: Date.now()
+    };
+
+    updateDatabaseState(recipes, nextUserState);
   };
 
-  // Log Cooked History (Real Milestone Achievement)
+  // Log Cooked History
   const handleLogCooked = (recipe, photoUrl = null) => {
     const logItem = {
       id: recipe.id || Date.now().toString(),
@@ -99,46 +160,73 @@ export default function App() {
       timestamp: Date.now()
     };
 
-    const newHistory = [logItem, ...cookedHistory];
-    setCookedHistory(newHistory);
-    syncUserState(newHistory);
+    const nextHistory = [logItem, ...cookedHistory];
+    const nextUserState = {
+      ...userState,
+      cookedHistory: nextHistory,
+      lastModified: Date.now()
+    };
+
+    updateDatabaseState(recipes, nextUserState);
+  };
+
+  // Delete / Undo Cooked History Item
+  const handleDeleteHistoryItem = (itemId) => {
+    const deletedRecordIds = new Set(userState.deletedRecordIds || []);
+    deletedRecordIds.add(itemId);
+
+    const nextHistory = cookedHistory.filter(item => item.id !== itemId && item.timestamp !== itemId);
+
+    const nextUserState = {
+      ...userState,
+      deletedRecordIds: Array.from(deletedRecordIds),
+      cookedHistory: nextHistory,
+      lastModified: Date.now()
+    };
+
+    updateDatabaseState(recipes, nextUserState);
   };
 
   // Add Custom / AI Parsed Recipe
   const handleAddRecipe = (newRecipe) => {
-    setRecipes(prev => [newRecipe, ...prev]);
+    const recipeToAdd = {
+      ...newRecipe,
+      id: newRecipe.id || `custom_${Date.now()}`
+    };
+    const updatedRecipes = [recipeToAdd, ...recipes];
 
-    fetch(`${API_BASE}/recipes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newRecipe)
-    }).catch(() => {});
+    const currentFavs = new Set(userState.favoriteIds || []);
+    currentFavs.add(recipeToAdd.id);
+
+    const nextUserState = {
+      ...userState,
+      favoriteIds: Array.from(currentFavs),
+      lastModified: Date.now()
+    };
+
+    updateDatabaseState(updatedRecipes, nextUserState);
   };
 
   // Reset entire database to zero
   const handleResetData = () => {
     if (window.confirm('⚠️ 确定要将所有做饭记录和数据清零吗？此操作将重置为初始干净状态。')) {
-      fetch(`${API_BASE}/reset`, { method: 'POST' })
-        .then(res => res.json())
-        .then(res => {
-          if (res.success && res.data) {
-            setRecipes(res.data.recipes);
-            setCookedHistory([]);
-            alert('✨ 数据已全部清零，重新开始自炊生活！');
-          }
-        })
-        .catch(() => {
-          alert('重置失败，请检查本地后台服务。');
-        });
+      try {
+        localStorage.removeItem('cookoo_universal_db_v1');
+      } catch (e) {}
+      const clean = loadDatabaseState();
+      setDbState(clean);
+      const code = getSyncCode();
+      pushKvData(code, clean.recipes, clean.userState);
+      alert('✨ 数据已全部清零，重新开始自炊生活！');
     }
   };
 
   // Export JSON Database
   const handleExportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ userState: { cookedHistory }, recipes }, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ userState, recipes }, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `cookoo_backup_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute("download", `cookoo_recipes_backup_${new Date().toISOString().split('T')[0]}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -146,95 +234,84 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Mobile Sticky Header */}
-      <Header 
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onOpenAddRecipe={() => setShowAddRecipeModal(true)}
-      />
+      {/* Dynamic Sub-page or Tab Routing */}
+      {activeMealCategory ? (
+        <MealCategoryView
+          mealType={activeMealCategory}
+          recipes={recipes}
+          onBack={() => setActiveMealCategory(null)}
+          onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
+        />
+      ) : (
+        <>
+          {activeTab === 'home' && (
+            <HomeView
+              recipes={recipes}
+              cookedHistory={cookedHistory}
+              onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
+              onOpenMealCategory={(mealKey) => setActiveMealCategory(mealKey)}
+              onOpenFridge={() => setShowFridgeModal(true)}
+              onOpenAiOrganizer={() => setShowAiOrganizerModal(true)}
+              onNavigateDiscover={() => setActiveTab('discover')}
+              onToggleFavorite={handleToggleFavorite}
+              onToggleLike={handleToggleLike}
+            />
+          )}
 
-      {/* Main Content Area */}
-      <main className="main-content">
-        {/* If Active in a Specific Meal Category Subpage (Breakfast, Lunch, Dinner, Night) */}
-        {activeMealCategory ? (
-          <MealCategoryView
-            mealType={activeMealCategory}
-            recipes={recipes}
-            onBack={() => setActiveMealCategory(null)}
-            onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
-            onToggleFavorite={handleToggleFavorite}
-          />
-        ) : (
-          <>
-            {activeTab === 'home' && (
-              <HomeView
-                recipes={recipes}
-                cookedHistory={cookedHistory}
-                onOpenMealCategory={(categoryKey) => setActiveMealCategory(categoryKey)}
-                onOpenInspiration={() => setShowInspirationModal(true)}
-                onOpenFridge={() => setShowFridgeModal(true)}
-                onOpenAiOrganizer={() => setShowAiOrganizerModal(true)}
-                onOpenInduction={() => setShowInductionModal(true)}
-                onNavigateJournal={() => setActiveTab('journal')}
-                onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
-                onToggleFavorite={handleToggleFavorite}
-                onNavigateDiscover={() => setActiveTab('discover')}
-              />
-            )}
+          {activeTab === 'discover' && (
+            <DiscoverView
+              recipes={recipes}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
+              onToggleFavorite={handleToggleFavorite}
+              onToggleLike={handleToggleLike}
+            />
+          )}
 
-            {activeTab === 'discover' && (
-              <DiscoverView
-                recipes={recipes}
-                searchQuery={searchQuery}
-                onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
-                onToggleFavorite={handleToggleFavorite}
-                onOpenMealCategory={(categoryKey) => setActiveMealCategory(categoryKey)}
-              />
-            )}
+          {activeTab === 'journal' && (
+            <JournalView
+              cookedHistory={cookedHistory}
+              onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
+              onOpenAddRecipe={() => setShowAddRecipeModal(true)}
+              onDeleteHistoryItem={handleDeleteHistoryItem}
+            />
+          )}
 
-            {activeTab === 'journal' && (
-              <JournalView
-                cookedHistory={cookedHistory}
-                totalRecipes={recipes.length}
-                onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
-                onNavigateDiscover={() => setActiveTab('discover')}
-              />
-            )}
+          {activeTab === 'profile' && (
+            <ProfileView
+              recipes={recipes}
+              cookedHistory={cookedHistory}
+              onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
+              onExportData={handleExportData}
+              onResetData={handleResetData}
+              onOpenAiConfig={() => setShowAiConfigModal(true)}
+              onOpenSyncCodeModal={() => setShowSyncCodeModal(true)}
+              onDeleteHistoryItem={handleDeleteHistoryItem}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          )}
+        </>
+      )}
 
-            {activeTab === 'profile' && (
-              <ProfileView
-                recipes={recipes}
-                cookedHistory={cookedHistory}
-                onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
-                onExportData={handleExportData}
-                onResetData={handleResetData}
-                onOpenAiConfig={() => setShowAiConfigModal(true)}
-              />
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Bottom Navigation */}
+      {/* Persistent Mobile Bottom Navigation Bar */}
       <Navigation
         activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setActiveMealCategory(null);
-          setActiveTab(tab);
-        }}
         onTabChange={(tab) => {
           setActiveMealCategory(null);
           setActiveTab(tab);
         }}
         onOpenAddRecipe={() => setShowAddRecipeModal(true)}
+        onOpenAiOrganizer={() => setShowAiOrganizerModal(true)}
       />
 
-      {/* Modals */}
+      {/* Global Drawers & Modals */}
       {showInspirationModal && (
         <InspirationCardModal
           recipes={recipes}
           onClose={() => setShowInspirationModal(false)}
-          onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
+          onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
+          onOpenCookingMode={(r) => setCookingModeRecipe(r)}
         />
       )}
 
@@ -242,7 +319,7 @@ export default function App() {
         <FridgeHeroModal
           recipes={recipes}
           onClose={() => setShowFridgeModal(false)}
-          onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
+          onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
           onAddRecipe={handleAddRecipe}
           onOpenAiConfig={() => setShowAiConfigModal(true)}
         />
@@ -260,7 +337,7 @@ export default function App() {
         <InductionCookerModal
           recipes={recipes}
           onClose={() => setShowInductionModal(false)}
-          onSelectRecipe={(r) => setSelectedRecipeDetail(r)}
+          onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
           onOpenCookingMode={(r) => setCookingModeRecipe(r)}
         />
       )}
@@ -281,12 +358,12 @@ export default function App() {
       {selectedRecipeDetail && (
         <RecipeDetailModal
           recipe={selectedRecipeDetail}
-          onClose={() => setSelectedRecipeDetail(null)}
+          onClose={() => setSelectedRecipeId(null)}
           onToggleFavorite={handleToggleFavorite}
           onToggleLike={handleToggleLike}
           onLogCooked={handleLogCooked}
           onOpenCookingMode={(r) => {
-            setSelectedRecipeDetail(null);
+            setSelectedRecipeId(null);
             setCookingModeRecipe(r);
           }}
         />

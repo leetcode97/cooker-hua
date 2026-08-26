@@ -10,6 +10,7 @@ export default function HomeView({
   onNavigateJournal,
   onSelectRecipe,
   onToggleFavorite,
+  onToggleLike,
   onNavigateDiscover
 }) {
   // Current hour for smart meal highlighting
@@ -292,9 +293,16 @@ export default function HomeView({
               </div>
               <div className="card-v2-footer">
                 <span className="card-v2-kcal">{recipe.calories}</span>
-                <div className="card-v2-likes">
+                <div 
+                  className="card-v2-likes"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleLike && onToggleLike(recipe.id);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <Heart size={14} color={recipe.isLiked ? '#FF4D4F' : '#A39386'} fill={recipe.isLiked ? '#FF4D4F' : 'none'} />
-                  <span>{recipe.likes}</span>
+                  <span>{recipe.likes || 0}</span>
                 </div>
               </div>
             </div>
