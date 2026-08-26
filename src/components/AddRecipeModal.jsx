@@ -47,45 +47,67 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
     }
   };
 
+  const [isCompressing, setIsCompressing] = useState(false);
+
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Use Canvas for frontend compression to avoid massive 20MB Base64 strings
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      const img = new Image();
+    const fileInput = e.target;
+    setIsCompressing(true);
+
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+      
       img.onload = () => {
-        // Calculate dimensions to maintain aspect ratio with a max width/height of 800px
-        const MAX_SIZE = 800;
-        let width = img.width;
-        let height = img.height;
+        try {
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
 
-        if (width > height) {
-          if (width > MAX_SIZE) {
-            height *= MAX_SIZE / width;
-            width = MAX_SIZE;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = Math.round(height * (MAX_SIZE / width));
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width = Math.round(width * (MAX_SIZE / height));
+              height = MAX_SIZE;
+            }
           }
-        } else {
-          if (height > MAX_SIZE) {
-            width *= MAX_SIZE / height;
-            height = MAX_SIZE;
-          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          setCoverImage(compressedBase64);
+        } catch (err) {
+          alert('压缩图片时出错: ' + err.message);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+          fileInput.value = '';
+          setIsCompressing(false);
         }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Compress to JPEG format with 70% quality (drastically reduces file size)
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-        setCoverImage(compressedBase64);
       };
-      img.src = uploadEvent.target.result;
-    };
-    reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        alert('图片加载失败，可能格式不被浏览器支持（如部分 HEIC）。请尝试换一张图。');
+        URL.revokeObjectURL(objectUrl);
+        fileInput.value = '';
+        setIsCompressing(false);
+      };
+
+      img.src = objectUrl;
+    } catch (err) {
+      alert('读取文件时出错: ' + err.message);
+      fileInput.value = '';
+      setIsCompressing(false);
+    }
   };
 
   const handleAddIngredientRow = () => {
@@ -175,8 +197,15 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
             />
 
             {coverImage ? (
-              <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', height: 160, border: '1.5px solid #FFCC80' }}>
-                <img src={coverImage} alt="菜品预览" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', aspectRatio: '4/3', border: '1.5px solid #FFCC80' }}>
+                <img src={coverImage} alt="菜品预览" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isCompressing ? 0.5 : 1 }} />
+                
+                {isCompressing && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)' }}>
+                    <div style={{ color: '#FF7417', fontWeight: 'bold' }}>图片处理中...</div>
+                  </div>
+                )}
+
                 <div style={{
                   position: 'absolute',
                   bottom: 8,
@@ -186,6 +215,7 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
                 }}>
                   <button
                     type="button"
+                    disabled={isCompressing}
                     onClick={() => fileInputRef.current?.click()}
                     style={{
                       background: 'rgba(0,0,0,0.65)',
@@ -194,7 +224,7 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
                       borderRadius: 10,
                       padding: '4px 8px',
                       fontSize: 11,
-                      cursor: 'pointer',
+                      cursor: isCompressing ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 4
@@ -204,6 +234,7 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
                   </button>
                   <button
                     type="button"
+                    disabled={isCompressing}
                     onClick={() => setCoverImage('')}
                     style={{
                       background: 'rgba(230,0,0,0.75)',
@@ -212,7 +243,7 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
                       borderRadius: 10,
                       padding: '4px 8px',
                       fontSize: 11,
-                      cursor: 'pointer'
+                      cursor: isCompressing ? 'not-allowed' : 'pointer'
                     }}
                   >
                     删除
@@ -221,18 +252,15 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
               </div>
             ) : (
               <div
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !isCompressing && fileInputRef.current?.click()}
                 style={{
                   height: 110,
                   border: '2px dashed #E0D4C5',
                   borderRadius: 16,
                   background: '#FAF5EE',
                   display: 'flex',
-                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  gap: 6,
                   color: '#7A6A5D'
                 }}
               >

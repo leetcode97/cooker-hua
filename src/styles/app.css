@@ -476,7 +476,7 @@
 
 .card-v2-img-box {
   width: 100%;
-  height: 125px;
+  aspect-ratio: 4 / 3;
   position: relative;
 }
 
@@ -757,7 +757,7 @@
 .recipe-detail-hero {
   position: relative;
   width: 100%;
-  height: 260px;
+  aspect-ratio: 4 / 3;
 }
 
 .recipe-detail-hero img {
