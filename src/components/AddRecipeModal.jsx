@@ -125,6 +125,10 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
     ]);
   };
 
+  const handleRemoveStep = (idx) => {
+    setSteps(steps.filter((_, i) => i !== idx));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -508,7 +512,7 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#C4B5A5',
+                        color: '#FF3B30',
                         cursor: 'pointer',
                         padding: 4
                       }}
@@ -551,8 +555,25 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {steps.map((st, idx) => (
                 <div key={idx} style={{ background: '#FFFFFF', border: '1px solid #F3E6D8', borderRadius: 12, padding: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#FF7417', marginBottom: 4 }}>
-                    步骤 {idx + 1}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#FF7417' }}>
+                      步骤 {idx + 1}
+                    </div>
+                    {steps.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStep(idx)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#FF3B30',
+                          cursor: 'pointer',
+                          padding: 2
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                   <textarea
                     rows={2}
