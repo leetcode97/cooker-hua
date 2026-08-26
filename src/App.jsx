@@ -38,6 +38,7 @@ export default function App() {
   const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
   const [showAiConfigModal, setShowAiConfigModal] = useState(false);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
+  const [editingRecipe, setEditingRecipe] = useState(null);
   const [cookingModeRecipe, setCookingModeRecipe] = useState(null);
 
   // Derive active recipe detail reactively
@@ -215,10 +216,21 @@ export default function App() {
       } catch (e) {}
       const clean = loadDatabaseState();
       setDbState(clean);
-      const code = getSyncCode();
-      pushKvData(code, clean.recipes, clean.userState);
+      pushToGlobalState(clean.recipes, clean.userState);
       alert('✨ 数据已全部清零，重新开始自炊生活！');
     }
+  };
+
+  const handleDeleteRecipe = (recipeId) => {
+    if (window.confirm('🗑️ 确定要彻底删除这个菜谱吗？')) {
+      const nextRecipes = recipes.filter(r => r.id !== recipeId);
+      updateDatabaseState(nextRecipes, userState);
+    }
+  };
+
+  const handleUpdateRecipe = (updatedRecipe) => {
+    const nextRecipes = recipes.map(r => r.id === updatedRecipe.id ? updatedRecipe : r);
+    updateDatabaseState(nextRecipes, userState);
   };
 
   // Export JSON Database
@@ -259,11 +271,16 @@ export default function App() {
           )}
 
           {activeTab === 'discover' && (
-            <DiscoverView
-              recipes={recipes}
+            <DiscoverView 
+              recipes={recipes} 
+              onSelectRecipe={(r) => setSelectedRecipeId(r.id)} 
+              onEditRecipe={(r) => {
+                setEditingRecipe(r);
+                setShowAddRecipeModal(true);
+              }}
+              onDeleteRecipe={handleDeleteRecipe}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
-              onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
               onToggleFavorite={handleToggleFavorite}
               onToggleLike={handleToggleLike}
             />
@@ -344,8 +361,20 @@ export default function App() {
 
       {showAddRecipeModal && (
         <AddRecipeModal
-          onClose={() => setShowAddRecipeModal(false)}
-          onAddRecipe={handleAddRecipe}
+          onClose={() => {
+            setShowAddRecipeModal(false);
+            setEditingRecipe(null);
+          }}
+          onSave={(recipe) => {
+            if (editingRecipe) {
+              handleUpdateRecipe(recipe);
+            } else {
+              handleAddRecipe(recipe);
+            }
+            setShowAddRecipeModal(false);
+            setEditingRecipe(null);
+          }}
+          initialData={editingRecipe}
         />
       )}
 

@@ -1,26 +1,31 @@
 import React, { useState, useRef } from 'react';
 import { X, Plus, Trash2, Camera, Image, Upload } from 'lucide-react';
 
-export default function AddRecipeModal({ onClose, onAddRecipe }) {
-  const [title, setTitle] = useState('');
-  const [subtitle, setSubtitle] = useState('');
-  const [cookTime, setCookTime] = useState('15');
-  const [calories, setCalories] = useState('320');
-  const [difficulty, setDifficulty] = useState('简单');
-  const [tags, setTags] = useState('家常菜, 快手菜');
-  const [selectedMealTypes, setSelectedMealTypes] = useState(['lunch']);
-  const [inductionFriendly, setInductionFriendly] = useState(true);
-  const [riceCookerFriendly, setRiceCookerFriendly] = useState(false);
-  const [coverImage, setCoverImage] = useState('');
+export default function AddRecipeModal({ onClose, onSave, initialData }) {
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [subtitle, setSubtitle] = useState(initialData?.subtitle || '');
+  const [cookTime, setCookTime] = useState(initialData?.minutes?.toString() || initialData?.cookTime?.replace(/[^0-9]/g, '') || '15');
+  const [calories, setCalories] = useState(initialData?.caloriesValue?.toString() || initialData?.calories?.replace(/[^0-9]/g, '') || '320');
+  const [difficulty, setDifficulty] = useState(initialData?.difficulty || '简单');
+  const [tags, setTags] = useState(initialData?.tags?.join(', ') || '家常菜, 快手菜');
+  const [selectedMealTypes, setSelectedMealTypes] = useState(initialData?.mealTypes || ['lunch']);
+  const [inductionFriendly, setInductionFriendly] = useState(initialData?.inductionFriendly ?? true);
+  const [riceCookerFriendly, setRiceCookerFriendly] = useState(initialData?.riceCookerFriendly ?? false);
+  const [coverImage, setCoverImage] = useState(initialData?.coverImage || '');
   
   const fileInputRef = useRef(null);
 
-  const [ingredients, setIngredients] = useState([
+  const [ingredients, setIngredients] = useState(initialData?.ingredients?.map(i => ({
+    name: i.name,
+    amount: i.amount + (i.unit || ''),
+    icon: i.icon || '🥗',
+    type: i.type || 'veg'
+  })) || [
     { name: '主要食材', amount: '200克', icon: '🥩', type: 'meat' },
     { name: '生抽', amount: '15ml', icon: '🍾', type: 'pantry' }
   ]);
 
-  const [steps, setSteps] = useState([
+  const [steps, setSteps] = useState(initialData?.steps || [
     { stepNumber: 1, title: '准备工作', description: '洗净食材切好备用。', duration: 3 },
     { stepNumber: 2, title: '下锅烹饪', description: '电磁炉大火热油倒入食材翻炒调味出锅。', duration: 5 }
   ]);
@@ -72,30 +77,43 @@ export default function AddRecipeModal({ onClose, onAddRecipe }) {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const formattedIngredients = ingredients.filter(i => i.name.trim()).map(i => {
+      const match = i.amount.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+      return {
+        name: i.name,
+        amount: match ? parseFloat(match[1]) : i.amount,
+        unit: match ? match[2] : '',
+        baseAmount: match ? parseFloat(match[1]) : i.amount,
+        icon: i.icon,
+        type: i.type
+      };
+    });
+
     const newRecipe = {
-      id: Date.now().toString(),
+      id: initialData?.id || `custom_${Date.now()}`,
       title,
-      subtitle: subtitle || '自己动手制作的美食小记。',
-      coverImage: coverImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+      subtitle,
       cookTime: `${cookTime} 分钟`,
       minutes: parseInt(cookTime) || 15,
       calories: `${calories} kcal`,
-      caloriesValue: parseInt(calories) || 300,
+      caloriesValue: parseInt(calories) || 320,
       difficulty,
+      tags: tags.split(',').map(t => t.trim()).filter(t => t),
       mealTypes: selectedMealTypes,
+      potType: inductionFriendly ? '平底锅' : '电饭煲',
       inductionFriendly,
       riceCookerFriendly,
-      tags: tags.split(/[,，]/).map(t => t.trim()).filter(Boolean),
-      likes: 0,
-      isLiked: false,
-      isFavorite: true,
-      author: '我',
-      publishDate: new Date().toISOString().split('T')[0],
-      ingredients: ingredients.filter(i => i.name.trim()),
-      steps: steps.filter(s => s.description.trim())
+      coverImage: coverImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+      ingredients: formattedIngredients,
+      steps: steps.map((s, i) => ({ ...s, stepNumber: i + 1 })),
+      author: initialData?.author || '我',
+      publishDate: initialData?.publishDate || new Date().toISOString().split('T')[0].replace(/-/g, '/'),
+      likes: initialData?.likes || 0,
+      isLiked: initialData?.isLiked || false,
+      isFavorite: initialData?.isFavorite || false
     };
 
-    onAddRecipe(newRecipe);
+    onSave(newRecipe);
     onClose();
   };
 
@@ -508,7 +526,7 @@ export default function AddRecipeModal({ onClose, onAddRecipe }) {
             className="btn-primary"
             style={{ width: '100%', padding: '12px 0', fontSize: 14 }}
           >
-            保存并加入菜谱库
+            {initialData ? '保存修改' : '保存并加入菜谱库'}
           </button>
         </form>
       </div>

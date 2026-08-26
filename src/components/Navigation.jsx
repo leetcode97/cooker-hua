@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Compass, Plus, Calendar, User } from 'lucide-react';
+import { Home, Compass, Plus, Calendar, User, BookOpen } from 'lucide-react';
 
 export default function Navigation({ 
   activeTab, 
@@ -29,8 +29,8 @@ export default function Navigation({
         className={`nav-item ${activeTab === 'discover' ? 'active' : ''}`}
         onClick={() => handleSelectTab('discover')}
       >
-        <Compass size={22} />
-        <span>发现</span>
+        <BookOpen size={22} />
+        <span>菜单</span>
       </div>
 
       <div 
