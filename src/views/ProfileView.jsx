@@ -15,7 +15,16 @@ export default function ProfileView({
   const [activeSubTab, setActiveSubTab] = useState('favorites'); // 'favorites' or 'history'
 
   const favorites = recipes.filter(r => r.isFavorite);
-  const historySafe = Array.isArray(cookedHistory) ? cookedHistory : [];
+  const rawHistory = Array.isArray(cookedHistory) ? cookedHistory : [];
+  
+  // 全局去重展示：保留最新一次打卡记录
+  const uniqueHistoryMap = new Map();
+  rawHistory.forEach(item => {
+    if (!uniqueHistoryMap.has(item.id)) {
+      uniqueHistoryMap.set(item.id, item);
+    }
+  });
+  const historySafe = Array.from(uniqueHistoryMap.values());
   const uniqueCookedIds = new Set(historySafe.map(item => item?.id || item?.title || Math.random()));
   const uniqueCookedCount = uniqueCookedIds.size;
 

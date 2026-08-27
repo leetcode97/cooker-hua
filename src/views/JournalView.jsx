@@ -10,11 +10,16 @@ export default function JournalView({ cookedHistory = [], onSelectRecipe, onOpen
   const mondayDate = new Date(today);
   mondayDate.setDate(today.getDate() + mondayOffset);
 
+  // Helper for local date string YYYY-MM-DD
+  const getLocalDateStr = (d) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mondayDate);
     d.setDate(mondayDate.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getLocalDateStr(d);
     const isToday = d.toDateString() === today.toDateString();
     return {
       dayName: dayNames[i],
@@ -24,14 +29,28 @@ export default function JournalView({ cookedHistory = [], onSelectRecipe, onOpen
     };
   });
 
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = getLocalDateStr(today);
   const [selectedDateStr, setSelectedDateStr] = useState(todayStr);
 
-  const historySafe = Array.isArray(cookedHistory) ? cookedHistory : [];
+
+
+  const normalizeHistoryItem = (item) => {
+    // 兼容老数据：如果缺失 date，或者 date 是老的 UTC 格式，强制转成本地时间字符串
+    if (!item.date || item.date.includes('T')) {
+      const d = item.timestamp ? new Date(item.timestamp) : new Date();
+      return { ...item, date: getLocalDateStr(d) };
+    }
+    // 兼容部分带有时区偏移的旧日期字符串，如用 timestamp 强制重新格式化一次最安全
+    if (item.timestamp) {
+       return { ...item, date: getLocalDateStr(new Date(item.timestamp)) };
+    }
+    return item;
+  };
+
+  const historySafe = (Array.isArray(cookedHistory) ? cookedHistory : []).map(normalizeHistoryItem);
   
-  // Filter history for selected date or show all if none on that day
-  const filteredHistory = historySafe.filter(item => item.date === selectedDateStr);
-  const displayHistory = filteredHistory.length > 0 ? filteredHistory : historySafe;
+  // Strictly filter history for selected date. Do NOT fallback to all history.
+  const displayHistory = historySafe.filter(item => item.date === selectedDateStr);
 
   const totalCalories = displayHistory.reduce((sum, item) => {
     const cal = typeof item.calories === 'string' ? parseInt(item.calories) : item.calories;

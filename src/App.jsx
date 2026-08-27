@@ -150,18 +150,43 @@ export default function App() {
     updateDatabaseState(recipes, nextUserState);
   };
 
+  const rawHistory = userState.cookedHistory || [];
+  const hydratedHistory = rawHistory.map(log => {
+    const rec = recipes.find(r => r.id === (log.recipeId || log.id));
+    if (rec) {
+      return {
+        ...log,
+        id: rec.id,
+        title: rec.title,
+        coverImage: rec.coverImage,
+        cookTime: rec.cookTime,
+        calories: rec.calories
+      };
+    }
+    return { ...log, id: log.recipeId || log.id, title: log.title || '已删除的菜谱', coverImage: log.coverImage || '' };
+  });
+
   // Log Cooked History
   const handleLogCooked = (recipe, photoUrl = null) => {
+    const d = new Date();
+    const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
     const logItem = {
-      id: recipe.id || Date.now().toString(),
-      title: recipe.title,
-      coverImage: photoUrl || recipe.coverImage,
-      cookTime: recipe.cookTime,
-      date: new Date().toISOString().split('T')[0],
+      recipeId: recipe.id,
+      date: localDateStr,
       timestamp: Date.now()
     };
 
-    const nextHistory = [logItem, ...cookedHistory];
+    // 去重逻辑：同一道菜在【同一天】只记录一次（防手抖），但允许跨天记录，形成真正的打卡日历
+    const filteredHistory = rawHistory.filter(item => !((item.recipeId === logItem.recipeId || item.id === logItem.recipeId) && item.date === logItem.date));
+    
+    // 强制瘦身：将存入数据库的历史记录全部转为轻量级格式，剔除冗余的图片和文字数据
+    const nextHistory = [logItem, ...filteredHistory].map(item => ({
+      recipeId: item.recipeId || item.id,
+      date: item.date,
+      timestamp: item.timestamp
+    }));
+
     const nextUserState = {
       ...userState,
       cookedHistory: nextHistory,
@@ -172,19 +197,13 @@ export default function App() {
   };
 
   // Delete / Undo Cooked History Item
-  const handleDeleteHistoryItem = (itemId) => {
-    const deletedRecordIds = new Set(userState.deletedRecordIds || []);
-    deletedRecordIds.add(itemId);
-
-    const nextHistory = cookedHistory.filter(item => item.id !== itemId && item.timestamp !== itemId);
-
+  const handleDeleteHistoryItem = (timestampOrId) => {
+    const nextHistory = rawHistory.filter(item => item.timestamp !== timestampOrId && item.id !== timestampOrId && item.recipeId !== timestampOrId);
     const nextUserState = {
       ...userState,
-      deletedRecordIds: Array.from(deletedRecordIds),
       cookedHistory: nextHistory,
       lastModified: Date.now()
     };
-
     updateDatabaseState(recipes, nextUserState);
   };
 
@@ -259,7 +278,7 @@ export default function App() {
           {activeTab === 'home' && (
             <HomeView
               recipes={recipes}
-              cookedHistory={cookedHistory}
+              cookedHistory={hydratedHistory}
               onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
               onOpenMealCategory={(mealKey) => setActiveMealCategory(mealKey)}
               onOpenFridge={() => setShowFridgeModal(true)}
@@ -288,7 +307,7 @@ export default function App() {
 
           {activeTab === 'journal' && (
             <JournalView
-              cookedHistory={cookedHistory}
+              cookedHistory={hydratedHistory}
               onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
               onOpenAddRecipe={() => setShowAddRecipeModal(true)}
               onDeleteHistoryItem={handleDeleteHistoryItem}
@@ -298,7 +317,7 @@ export default function App() {
           {activeTab === 'profile' && (
             <ProfileView
               recipes={recipes}
-              cookedHistory={cookedHistory}
+              cookedHistory={hydratedHistory}
               onSelectRecipe={(r) => setSelectedRecipeId(r.id)}
               onExportData={handleExportData}
               onResetData={handleResetData}
