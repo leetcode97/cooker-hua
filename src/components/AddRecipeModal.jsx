@@ -1,16 +1,23 @@
 import React, { useState, useRef } from 'react';
 import { X, Plus, Trash2, Camera, Image, Upload } from 'lucide-react';
 
-export default function AddRecipeModal({ onClose, onSave, initialData }) {
+export default function AddRecipeModal({ onClose, onSave, initialData, recipes }) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [subtitle, setSubtitle] = useState(initialData?.subtitle || '');
   const [cookTime, setCookTime] = useState(initialData?.minutes?.toString() || initialData?.cookTime?.replace(/[^0-9]/g, '') || '15');
   const [calories, setCalories] = useState(initialData?.caloriesValue?.toString() || initialData?.calories?.replace(/[^0-9]/g, '') || '320');
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || '简单');
-  const [tags, setTags] = useState(initialData?.tags?.join(', ') || '家常菜, 快手菜');
+  
+  const [tags, setTags] = useState(initialData?.tags || ['家常菜']);
+  const [newTagInput, setNewTagInput] = useState('');
+  
+  const DEFAULT_TAGS = ['家常菜', '快手菜', '减脂餐'];
+  const existingTags = Array.from(new Set([
+    ...DEFAULT_TAGS,
+    ...(recipes || []).flatMap(r => r.tags || [])
+  ]));
+
   const [selectedMealTypes, setSelectedMealTypes] = useState(initialData?.mealTypes || ['lunch']);
-  const [inductionFriendly, setInductionFriendly] = useState(initialData?.inductionFriendly ?? true);
-  const [riceCookerFriendly, setRiceCookerFriendly] = useState(initialData?.riceCookerFriendly ?? false);
   const [coverImage, setCoverImage] = useState(initialData?.coverImage || '');
   
   const fileInputRef = useRef(null);
@@ -129,6 +136,13 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
     setSteps(steps.filter((_, i) => i !== idx));
   };
 
+  const handleAddCustomTag = () => {
+    if (newTagInput.trim() && !tags.includes(newTagInput.trim())) {
+      setTags([...tags, newTagInput.trim()]);
+    }
+    setNewTagInput('');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -154,11 +168,8 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
       calories: `${calories} kcal`,
       caloriesValue: parseInt(calories) || 320,
       difficulty,
-      tags: tags.split(',').map(t => t.trim()).filter(t => t),
+      tags: tags.length ? tags : ['家常菜'],
       mealTypes: selectedMealTypes,
-      potType: inductionFriendly ? '平底锅' : '电饭煲',
-      inductionFriendly,
-      riceCookerFriendly,
       coverImage: coverImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
       ingredients: formattedIngredients,
       steps: steps.map((s, i) => ({ ...s, stepNumber: i + 1 })),
@@ -400,43 +411,82 @@ export default function AddRecipeModal({ onClose, onSave, initialData }) {
             </div>
           </div>
 
-          {/* Cookware Switches */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <button
-              type="button"
-              onClick={() => setInductionFriendly(!inductionFriendly)}
-              style={{
-                flex: 1,
-                border: inductionFriendly ? '1.5px solid #FF7417' : '1px solid #E0D4C5',
-                background: inductionFriendly ? '#FFF0E5' : '#FFFFFF',
-                color: inductionFriendly ? '#FF7417' : '#7A6A5D',
-                borderRadius: 10,
-                padding: '6px 8px',
-                fontSize: 12,
-                fontWeight: inductionFriendly ? 800 : 500,
-                cursor: 'pointer'
-              }}
-            >
-              ⚡ 适合电磁炉: {inductionFriendly ? '是' : '否'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRiceCookerFriendly(!riceCookerFriendly)}
-              style={{
-                flex: 1,
-                border: riceCookerFriendly ? '1.5px solid #2E7D32' : '1px solid #E0D4C5',
-                background: riceCookerFriendly ? '#E8F5E9' : '#FFFFFF',
-                color: riceCookerFriendly ? '#2E7D32' : '#7A6A5D',
-                borderRadius: 10,
-                padding: '6px 8px',
-                fontSize: 12,
-                fontWeight: riceCookerFriendly ? 800 : 500,
-                cursor: 'pointer'
-              }}
-            >
-              🍚 适合电饭煲: {riceCookerFriendly ? '是' : '否'}
-            </button>
+          {/* Section: Tags */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#3D2C20', display: 'block', marginBottom: 8 }}>
+              所属菜品标签 (再次点击已选标签即可删除)
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              {Array.from(new Set([...existingTags, ...tags])).map(tag => {
+                const isSelected = tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) setTags(tags.filter(t => t !== tag));
+                      else setTags([...tags, tag]);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '6px 14px',
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: isSelected ? 800 : 500,
+                      color: isSelected ? '#FFFFFF' : '#7A6A5D',
+                      background: isSelected ? '#FF7417' : '#F7F3F0',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {tag}
+                    {isSelected && <X size={12} strokeWidth={3} />}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                placeholder="输入自定义标签..."
+                value={newTagInput}
+                onChange={e => setNewTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomTag();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  borderRadius: 12,
+                  border: '1.5px solid #F3E6D8',
+                  padding: '8px 12px',
+                  fontSize: 12,
+                  outline: 'none',
+                  backgroundColor: '#FFFFFF'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomTag}
+                style={{
+                  background: '#FFF0E5',
+                  color: '#FF7417',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '0 14px',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                添加标签
+              </button>
+            </div>
           </div>
 
           {/* Section: Ingredients */}

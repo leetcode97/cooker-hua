@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { ChefHat, Search, Edit2, Trash2, Clock, Heart, ChevronRight } from 'lucide-react';
 
-// Extract POPULAR_TAGS locally if needed or just use a fixed list
-const POPULAR_TAGS = ['极速', '电饭煲', '高蛋白', '快手菜', '懒人主食', '减脂餐'];
-
 export default function DiscoverView({ recipes, onSelectRecipe, onEditRecipe, onDeleteRecipe, searchQuery, onSearchChange, onToggleFavorite, onToggleLike }) {
   const [selectedTag, setSelectedTag] = useState('全部');
   const [sortTab, setSortTab] = useState('latest'); // recommend, latest, hottest
+
+  const DEFAULT_TAGS = ['家常菜', '快手菜', '减脂餐'];
+  const allTags = Array.from(new Set([
+    ...DEFAULT_TAGS,
+    ...recipes.flatMap(r => r.tags || [])
+  ]));
 
   // Filtering & Sorting
   let filtered = recipes.filter(r => {
@@ -64,7 +67,7 @@ export default function DiscoverView({ recipes, onSelectRecipe, onEditRecipe, on
           >
             全部
           </button>
-          {POPULAR_TAGS.map(tag => (
+          {allTags.map(tag => (
             <button
               key={tag}
               className={`filter-tag-btn ${selectedTag === tag ? 'active' : ''}`}
@@ -97,7 +100,7 @@ export default function DiscoverView({ recipes, onSelectRecipe, onEditRecipe, on
                   <div className="card-v2-title">{recipe.title}</div>
                   <div className="card-v2-snippet">{recipe.subtitle}</div>
                   <div className="card-v2-tags">
-                    {recipe.tags.slice(0, 2).map((t, idx) => (
+                    {(recipe.tags || []).map((t, idx) => (
                       <span key={idx} className="tag-chip">{t}</span>
                     ))}
                   </div>

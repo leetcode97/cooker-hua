@@ -62,7 +62,7 @@ export default function App() {
       return; 
     }
     
-    // 强制采用云端最新事实
+    // 强制采用云端最新事实，标签原样保留，不做任何过滤
     const nextRecipes = cloudData.recipes || [];
     const nextUserState = cloudData.userState || {};
     
@@ -380,6 +380,7 @@ export default function App() {
 
       {showAddRecipeModal && (
         <AddRecipeModal
+          recipes={recipes}
           onClose={() => {
             setShowAddRecipeModal(false);
             setEditingRecipe(null);

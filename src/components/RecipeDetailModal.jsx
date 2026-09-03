@@ -230,11 +230,6 @@ export default function RecipeDetailModal({
             <div className="recipe-detail-title-row">
               <div>
                 <div className="recipe-detail-title">{recipe.title}</div>
-                {recipe.potType && (
-                  <div style={{ fontSize: 11, color: '#FF7417', fontWeight: 600, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Zap size={12} fill="#FF7417" /> 推荐锅具: {recipe.potType}
-                  </div>
-                )}
               </div>
               <button 
                 className="star-btn-lg" 

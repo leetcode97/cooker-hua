@@ -239,11 +239,6 @@ export default function HomeView({
                 <div className="horiz-card-title">{recipe.title}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                   <span className="horiz-card-time">{recipe.cookTime}</span>
-                  {recipe.inductionFriendly && (
-                    <span style={{ fontSize: 9, background: '#FFF0E5', color: '#FF7417', padding: '1px 4px', borderRadius: 4, fontWeight: 700 }}>
-                      ⚡ 电磁炉
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -280,16 +275,9 @@ export default function HomeView({
               <div className="card-v2-title">{recipe.title}</div>
               <div className="card-v2-snippet">{recipe.subtitle}</div>
               <div className="card-v2-tags">
-                {recipe.inductionFriendly && (
-                  <span className="tag-chip" style={{ background: '#FFF3E0', color: '#E65100', fontWeight: 700 }}>
-                    ⚡ 电磁炉
-                  </span>
-                )}
-                {recipe.riceCookerFriendly && (
-                  <span className="tag-chip" style={{ background: '#E8F5E9', color: '#2E7D32', fontWeight: 700 }}>
-                    🍚 电饭煲
-                  </span>
-                )}
+                {(recipe.tags || []).map((t, idx) => (
+                  <span key={idx} className="tag-chip">{t}</span>
+                ))}
               </div>
               <div className="card-v2-footer">
                 <span className="card-v2-kcal">{recipe.calories}</span>

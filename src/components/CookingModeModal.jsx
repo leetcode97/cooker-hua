@@ -173,13 +173,6 @@ export default function CookingModeModal({ recipe, onClose, onFinishCooked }) {
             }}>
               {currentStep.description}
             </div>
-
-            {/* Pot Tip */}
-            {recipe.potType && (
-              <div style={{ fontSize: 12, color: '#8D6E63', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>🍲 推荐锅具: {recipe.potType}</span>
-              </div>
-            )}
           </div>
 
           {/* Huge Step Timer Card */}
